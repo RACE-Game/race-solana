@@ -1,3 +1,5 @@
+cargo-features = ["workspace-inheritance"]
+
 [package]
 name = "race-solana-types"
 description = "Type definitions for Race Solana integration"
@@ -17,12 +19,12 @@ publish = true
 solana-program = { version = "1.14.18", optional = true }
 solana-sdk = { version = "1.14.18", optional = true }
 spl-token = { version = "3.5.0", features = ["no-entrypoint"]}
-spl-associated-token-account = "1.1.2"
-borsh = "0.9.3"
-thiserror = "1.0.35"
+spl-associated-token-account.workspace = true
+borsh.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
-anyhow = "1.0.64"
+anyhow.workspace = true
 
 [features]
 default = ["program"]

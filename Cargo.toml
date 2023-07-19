@@ -9,6 +9,17 @@ members = [
 lto = true
 opt-level = 3
 
+[workspace.dependencies]
+solana-program = "1.14.18"
+solana-sdk = "1.14.18"
+spl-token = "3.5.0"
+spl-associated-token-account = "1.1.2"
+borsh = "0.9.3"
+thiserror = "1.0.35"
+anyhow = "1.0.64"
+arrayref = "0.3.6"
+mpl-token-metadata = "1.9.1"
+
 [workspace.package]
 authors = ["RACE Foundation <race.game.team@gmail.com>"]
 version = "0.0.5"
