@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+  "contract",
+  "types",
+]
+
+[profile.release]
+lto = true
+opt-level = 3
+
+[workspace.package]
+authors = ["RACE Foundation <race.game.team@gmail.com>"]
+version = "0.0.5"
+edition = "2021"
+rust-version = "1.65.0"
+license = "MPL-2.0"
+repository = "https://github.com/RACE-Game/race"
+documentation = "https://docs.rs/race"
+homepage = "https://race-protocol.pages.dev"
+keywords = ["blockchain"]
+readme = "README.md"

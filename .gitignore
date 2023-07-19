@@ -1,0 +1,8 @@
+target
+pkg
+node_modules
+dist
+.log
+test-ledger/
+result
+.direnv

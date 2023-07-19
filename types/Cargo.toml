@@ -1,0 +1,30 @@
+[package]
+name = "race-solana-types"
+description = "Type definitions for Race Solana integration"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+documentation.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+readme.workspace = true
+publish = true
+
+[dependencies]
+solana-program = { version = "1.14.18", optional = true }
+solana-sdk = { version = "1.14.18", optional = true }
+spl-token = { version = "3.5.0", features = ["no-entrypoint"]}
+spl-associated-token-account = "1.1.2"
+borsh = "0.9.3"
+thiserror = "1.0.35"
+
+[dev-dependencies]
+anyhow = "1.0.64"
+
+[features]
+default = ["program"]
+program = ["dep:solana-program"]
+sdk = ["dep:solana-sdk"]
