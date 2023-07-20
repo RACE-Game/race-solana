@@ -1,4 +1,4 @@
-use race_solana_types::instruction::RaceInstruction;
+use crate::instruction::RaceInstruction;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
 
 mod close_game;

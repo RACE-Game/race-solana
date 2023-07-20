@@ -1,14 +1,10 @@
-#[cfg(feature = "program")]
 use crate::constants::PROFILE_ACCOUNT_LEN;
 use borsh::{BorshDeserialize, BorshSerialize};
-#[cfg(feature = "program")]
 use solana_program::{
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
-#[cfg(not(feature = "program"))]
-use solana_sdk::pubkey::Pubkey;
 
 // =======================================================
 // ====================== PLAYER ACCOUNT =================
@@ -21,17 +17,14 @@ pub struct PlayerState {
     pub pfp: Option<Pubkey>,
 }
 
-#[cfg(feature = "program")]
 impl IsInitialized for PlayerState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-#[cfg(feature = "program")]
 impl Sealed for PlayerState {}
 
-#[cfg(feature = "program")]
 impl Pack for PlayerState {
     const LEN: usize = PROFILE_ACCOUNT_LEN;
 

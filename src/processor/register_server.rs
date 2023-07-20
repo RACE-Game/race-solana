@@ -8,8 +8,8 @@ use solana_program::{
 };
 
 use crate::{error::ProcessError, state::ServerState};
-use race_solana_types::constants::SERVER_PROFILE_SEED;
-use race_solana_types::types::RegisterServerParams;
+use crate::constants::SERVER_PROFILE_SEED;
+use crate::types::RegisterServerParams;
 
 #[inline(never)]
 pub fn process(

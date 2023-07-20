@@ -3,7 +3,6 @@ use crate::types::{
     PublishParams, RegisterServerParams, SettleParams, VoteParams, ServeParams,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
-#[cfg(feature = "program")]
 use solana_program::program_error::ProgramError;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
@@ -126,7 +125,6 @@ pub enum RaceInstruction {
     PublishGame { params: PublishParams },
 }
 
-#[cfg(feature = "program")]
 impl RaceInstruction {
     pub fn pack(instruction: RaceInstruction) -> Result<Vec<u8>, ProgramError> {
         Ok(instruction.try_to_vec()?)

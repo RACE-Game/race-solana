@@ -1,14 +1,10 @@
-#[cfg(feature = "program")]
 use crate::constants::SERVER_ACCOUNT_LEN;
 use borsh::{BorshDeserialize, BorshSerialize};
-#[cfg(feature = "program")]
 use solana_program::{
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
-#[cfg(not(feature = "program"))]
-use solana_sdk::pubkey::Pubkey;
 
 #[cfg_attr(test, derive(PartialEq, Clone))]
 #[derive(BorshDeserialize, BorshSerialize, Default, Debug)]
@@ -19,17 +15,14 @@ pub struct ServerState {
     pub endpoint: String, // max: 50 chars
 }
 
-#[cfg(feature = "program")]
 impl IsInitialized for ServerState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-#[cfg(feature = "program")]
 impl Sealed for ServerState {}
 
-#[cfg(feature = "program")]
 impl Pack for ServerState {
     const LEN: usize = SERVER_ACCOUNT_LEN;
 

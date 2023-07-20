@@ -1,5 +1,5 @@
 use crate::{error::ProcessError, state::GameState};
-use race_solana_types::{
+use crate::{
     state::Vote,
     types::{VoteParams, VoteType},
 };

@@ -1,33 +1,23 @@
-[workspace]
-resolver = "2"
-members = [
-  "contract",
-  "types",
-]
-
-[profile.release]
-lto = true
-opt-level = 3
-
-[workspace.dependencies]
-solana-program = "1.14.18"
-solana-sdk = "1.14.18"
-spl-token = "3.5.0"
-spl-associated-token-account = "1.1.2"
-borsh = "0.9.3"
-thiserror = "1.0.35"
-anyhow = "1.0.64"
-arrayref = "0.3.6"
-mpl-token-metadata = "1.9.1"
-
-[workspace.package]
-authors = ["RACE Foundation <race.game.team@gmail.com>"]
-version = "0.0.5"
+[package]
+name = "race-solana"
+version = "0.1.0"
 edition = "2021"
-rust-version = "1.65.0"
-license = "MPL-2.0"
-repository = "https://github.com/RACE-Game/race"
-documentation = "https://docs.rs/race"
-homepage = "https://race-protocol.pages.dev"
-keywords = ["blockchain"]
-readme = "README.md"
+
+[features]
+no-entrypoint = []
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+race-solana-types = { path = "../types", features = ["program"] }
+solana-program.workspace = true
+spl-token = { workspace = true, features = ["no-entrypoint"]}
+spl-associated-token-account.workspace = true
+borsh.workspace = true
+arrayref.workspace = true
+thiserror.workspace = true
+mpl-token-metadata = { workspace = true, features = ["no-entrypoint"] }
+
+[dev-dependencies]
+anyhow.workspace = true

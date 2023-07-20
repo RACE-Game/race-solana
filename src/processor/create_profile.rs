@@ -9,8 +9,8 @@ use solana_program::{
 };
 
 use crate::{error::ProcessError, state::PlayerState};
-use race_solana_types::constants::PLAYER_PROFILE_SEED;
-use race_solana_types::types::CreatePlayerProfileParams;
+use crate::constants::PLAYER_PROFILE_SEED;
+use crate::types::CreatePlayerProfileParams;
 
 #[inline(never)]
 pub fn process(

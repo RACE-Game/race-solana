@@ -1,5 +1,5 @@
 use mpl_token_metadata::instruction::{create_master_edition_v3, create_metadata_accounts_v3};
-use race_solana_types::types::PublishParams;
+use crate::types::PublishParams;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,

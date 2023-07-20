@@ -8,7 +8,7 @@
 //! 2. Player without assets must be ejected.
 
 use crate::{error::ProcessError, state::GameState};
-use race_solana_types::types::{SettleOp, SettleParams};
+use crate::types::{SettleOp, SettleParams};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,

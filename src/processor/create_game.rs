@@ -10,7 +10,7 @@ use solana_program::{
 };
 
 use crate::state::{GameState, PlayerJoin};
-use race_solana_types::types::CreateGameAccountParams;
+use crate::types::CreateGameAccountParams;
 use spl_token::{
     instruction::{set_authority, AuthorityType},
     state::Mint,

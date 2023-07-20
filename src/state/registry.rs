@@ -1,14 +1,10 @@
-#[cfg(feature = "program")]
 use crate::constants::REGISTRY_ACCOUNT_LEN;
 use borsh::{BorshDeserialize, BorshSerialize};
-#[cfg(feature = "program")]
 use solana_program::{
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
-#[cfg(not(feature = "program"))]
-use solana_sdk::pubkey::Pubkey;
 
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone)]
@@ -29,16 +25,13 @@ pub struct RegistryState {
     pub games: Box<Vec<GameReg>>,
 }
 
-#[cfg(feature = "program")]
 impl IsInitialized for RegistryState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-#[cfg(feature = "program")]
 impl Sealed for RegistryState {}
-#[cfg(feature = "program")]
 impl Pack for RegistryState {
     const LEN: usize = REGISTRY_ACCOUNT_LEN;
 

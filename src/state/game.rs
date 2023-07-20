@@ -1,15 +1,11 @@
-#[cfg(feature = "program")]
 use crate::constants::GAME_ACCOUNT_LEN;
 use crate::types::VoteType;
 use borsh::{BorshDeserialize, BorshSerialize};
-#[cfg(feature = "program")]
 use solana_program::{
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
-#[cfg(not(feature = "program"))]
-use solana_sdk::pubkey::Pubkey;
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug)]
@@ -79,17 +75,14 @@ pub struct GameState {
     pub unlock_time: Option<u64>,
 }
 
-#[cfg(feature = "program")]
 impl IsInitialized for GameState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-#[cfg(feature = "program")]
 impl Sealed for GameState {}
 
-#[cfg(feature = "program")]
 impl Pack for GameState {
     const LEN: usize = GAME_ACCOUNT_LEN;
 

@@ -17,7 +17,7 @@ use crate::{
     error::ProcessError,
     state::{GameState, ServerJoin, ServerState},
 };
-use race_solana_types::{constants::MAX_SERVER_NUM, types::ServeParams};
+use crate::{constants::MAX_SERVER_NUM, types::ServeParams};
 
 #[inline(never)]
 pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServeParams) -> ProgramResult {

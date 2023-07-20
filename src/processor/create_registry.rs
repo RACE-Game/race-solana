@@ -1,5 +1,5 @@
 use crate::state::{GameReg, RegistryState};
-use race_solana_types::types::CreateRegistrationParams;
+use crate::types::CreateRegistrationParams;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,

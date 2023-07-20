@@ -2,7 +2,7 @@ use crate::{
     error::ProcessError,
     state::{GameState, PlayerJoin},
 };
-use race_solana_types::types::JoinParams;
+use crate::types::JoinParams;
 ///! Player joins a game (cash, sng or tourney)
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
