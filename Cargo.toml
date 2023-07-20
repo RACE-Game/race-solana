@@ -10,11 +10,13 @@ no-entrypoint = []
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-solana-program = "1.5.6"
-spl-token = { version = "3.0.1", features = ["no-entrypoint"] }
+solana-program = "1.16.4"
+spl-token = { version = "4.0.0", features = ["no-entrypoint"] }
 borsh = "0.9.3"
 arrayref = "0.3.6"
 thiserror = "1.0.35"
+spl-associated-token-account = "2.0.0"
+mpl-token-metadata = "1.13.0"
 
 [dev-dependencies]
 anyhow = "1.0.64"
