@@ -143,6 +143,7 @@ pub fn process(
         transfer_source.transfer(receiver_ata, amount)?;
     }
 
+    game_state.settle_version += 1;
     GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
 
     Ok(())
