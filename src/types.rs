@@ -3,6 +3,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
+use crate::state::RecipientSlot;
+
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct TokenInfo {
     name: String,
@@ -126,4 +128,19 @@ pub struct PublishParams {
     pub uri: String,
     pub name: String,
     pub symbol: String,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct CreateRecipientParams {
+    pub slots: Vec<RecipientSlot>
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct AddRecipientSlotsParams {
+    pub slots: Vec<RecipientSlot>
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct AssignRecipientParams {
+    pub identifier: String
 }

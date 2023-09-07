@@ -8,6 +8,23 @@ use solana_program::{
 };
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
+pub enum EntryType {
+    Cash {
+        min_deposit: u64,
+        max_deposit: u64,
+    },
+    Ticket {
+        recipient_addr: Pubkey,
+        slot_id: u8,
+        amount: u64,
+    },
+    Gating {
+        collection: String,
+    }
+}
+
+#[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug)]
 pub struct PlayerJoin {
     pub addr: Pubkey,

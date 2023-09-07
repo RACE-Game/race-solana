@@ -9,7 +9,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::state::{GameState, PlayerJoin};
+use crate::{state::{GameState, PlayerJoin}, constants::GAME_ACCOUNT_LEN};
 use crate::types::CreateGameAccountParams;
 use spl_token::{
     instruction::{set_authority, AuthorityType},
@@ -87,6 +87,10 @@ pub fn process(
         unlock_time: None,
         votes: Default::default(),
     };
+
+    if game_account.data_len() != GAME_ACCOUNT_LEN {
+        return Err(ProgramError::AccountDataTooSmall);
+    }
 
     GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
 

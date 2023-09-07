@@ -118,6 +118,10 @@ pub enum ProcessError {
     /// 1C
     #[error("Given position falls out the range of 0 to player_num - 1")]
     InvalidPosition,
+
+    /// 1D
+    #[error("No capacibility to update recipient account")]
+    NoRecipientUpdateCap
 }
 
 impl From<ProcessError> for ProgramError {

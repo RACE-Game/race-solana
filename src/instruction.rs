@@ -1,6 +1,6 @@
 use crate::types::{
     CreateGameAccountParams, CreatePlayerProfileParams, CreateRegistrationParams, JoinParams,
-    PublishParams, RegisterServerParams, SettleParams, VoteParams, ServeParams,
+    PublishParams, RegisterServerParams, SettleParams, VoteParams, ServeParams, CreateRecipientParams, AssignRecipientParams, AddRecipientSlotsParams,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
@@ -114,22 +114,56 @@ pub enum RaceInstruction {
     ///
     /// Accounts expected:
     /// 0. `[signer]` The payer account
-    /// 1. `[]` The mint account.
-    /// 2. `[writable]` The ata account.
-    /// 3. `[]` The metadata PDA.
-    /// 4. `[]` The edition PDA.
-    /// 5. `[]` The token program.
-    /// 6. `[]` The metaplex program.
-    /// 7. `[]` The sys rent program.
-    /// 8. `[]` The system program.
+    /// 1. `[]` The mint account
+    /// 2. `[writable]` The ata account
+    /// 3. `[]` The metadata PDA
+    /// 4. `[]` The edition PDA
+    /// 5. `[]` The token program
+    /// 6. `[]` The metaplex program
+    /// 7. `[]` The sys rent program
+    /// 8. `[]` The system program
     PublishGame { params: PublishParams },
+
+    /// # Create recipient
+    ///
+    /// Accounts expected:
+    /// 0. `[signer]` The payer account
+    /// 1. `[]` The cap account
+    /// 2. `[]` The recipient account
+    /// 3. `[]` The token program
+    /// 3+n. `[]` The Nth staking account for slots
+    CreateRecipient { params: CreateRecipientParams },
+
+    /// # Add recipient slot
+    ///
+    /// Accounts expected:
+    /// 0. `[signer]` The payer account, should be the cap account of recipient
+    /// 1. `[writable]` The recipient account
+    /// 2. `[]` The token program
+    /// 2+n. `[]` The Nth staking account for added slots
+    AddRecipientSlots { params: AddRecipientSlotsParams },
+
+    /// # Assign recipient
+    ///
+    /// Accounts expected:
+    /// 0. `[signer]` The payer account, should be the cap account of recipient
+    /// 1. `[writable]` The recipient account
+    /// 2. `[]` The account to assigned as the owner to a slot
+    AssignRecipient { params: AssignRecipientParams },
+
+    /// # Recipient claim
+    ///
+    /// Accounts expected:
+    /// 0. `[signer]` The fee payer
+    /// 1. `[writable]` The recipient account
+    /// 2. `[]` The PDA account as the owner of stake accounts
+    /// 3. `[]` The token program
+    /// 4. `[]` The system program
+    /// Rest. `[]` The stake account followed by the corresponding ATA to receive tokens
+    RecipientClaim,
 }
 
 impl RaceInstruction {
-    pub fn pack(instruction: RaceInstruction) -> Result<Vec<u8>, ProgramError> {
-        Ok(instruction.try_to_vec()?)
-    }
-
     pub fn unpack(src: &[u8]) -> Result<Self, ProgramError> {
         Ok(RaceInstruction::try_from_slice(src).unwrap())
     }

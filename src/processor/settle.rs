@@ -1,6 +1,6 @@
 //! Settle game result
 //!
-//! Transfer the game assets between players, eject and payout leaving players.
+//! Transfer the game assets between players, eject and pay leaving players.
 //! This instruction is only available for current game transactor.
 //!
 //! Settles must be validated:
@@ -47,8 +47,8 @@ pub fn process(
     // Ensure changes are sum up to zero
     let mut sum = 0i64;
 
-    // Collect the payouts.
-    let mut payouts: Vec<(Pubkey, u64)> = Vec::new();
+    // Collect the pays.
+    let mut pays: Vec<(Pubkey, u64)> = Vec::new();
 
     // We should check the order of settles: add < sub < ejec
     // 0 for add, 1 for sub, 2 for eject.
@@ -107,7 +107,7 @@ pub fn process(
                     .position(|p| p.addr.eq(&settle.addr));
                 if let Some(idx) = idx {
                     let player = game_state.players.remove(idx);
-                    payouts.push((player.addr, player.balance));
+                    pays.push((player.addr, player.balance));
                 } else {
                     return Err(ProcessError::InvalidSettlePlayerAddress)?;
                 }
@@ -127,7 +127,7 @@ pub fn process(
         }
     }
 
-    // Payout tokens
+    // Transfer tokens
     let transfer_source = TransferSource::try_new(
         system_program.clone(),
         token_program.clone(),
@@ -137,7 +137,7 @@ pub fn process(
         program_id,
     )?;
 
-    for (addr, amount) in payouts.into_iter() {
+    for (addr, amount) in pays.into_iter() {
         let receiver_ata = next_account_info(account_iter)?;
         validate_receiver_account(&addr, &game_state.token_mint, receiver_ata.key)?;
         transfer_source.transfer(receiver_ata, amount)?;

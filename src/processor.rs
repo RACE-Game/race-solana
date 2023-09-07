@@ -14,6 +14,10 @@ mod serve;
 mod settle;
 mod unregister_game;
 mod vote;
+mod create_recipient;
+mod add_recipient_slots;
+mod assign_recipient;
+mod recipient_claim;
 
 pub fn process(
     program_id: &Pubkey,
@@ -70,6 +74,22 @@ pub fn process(
         RaceInstruction::PublishGame { params } => {
             msg!("Publish a game as NFT");
             publish_game::process(program_id, accounts, params)
+        }
+        RaceInstruction::CreateRecipient { params }=> {
+            msg!("Create recipient");
+            create_recipient::process(program_id, accounts, params)
+        }
+        RaceInstruction::AddRecipientSlots { params }=> {
+            msg!("Add recipient slots");
+            add_recipient_slots::process(program_id, accounts, params)
+        }
+        RaceInstruction::AssignRecipient { params }=> {
+            msg!("Assign recipient");
+            assign_recipient::process(program_id, accounts, params)
+        }
+        RaceInstruction::RecipientClaim => {
+            msg!("Recipient claim");
+            recipient_claim::process(program_id, accounts)
         }
     }
 }
