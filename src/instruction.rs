@@ -7,7 +7,7 @@ use solana_program::program_error::ProgramError;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub enum RaceInstruction {
-    /// # Create a new game
+    /// # [0] Create a new game
     ///
     /// Accounts expected:
     /// 0. `[signer]` The account of transactor
@@ -19,7 +19,7 @@ pub enum RaceInstruction {
     /// 6. `[]` The recipient account
     CreateGameAccount { params: CreateGameAccountParams },
 
-    /// # Close a new game
+    /// # [1] Close a new game
     ///
     /// Accounts expected:
     /// 0. `[signer]` The account of game owner
@@ -30,14 +30,14 @@ pub enum RaceInstruction {
     /// 5. `[]` Token program.
     CloseGameAccount,
 
-    /// # Create an on-chain "lobby" for game registration
+    /// # [2] Create an on-chain "lobby" for game registration
     ///
     /// Accounts expected:
     /// 0. `[signer]` The account of game owner
     /// 1. `[writable]` The registry account
     CreateRegistry { params: CreateRegistrationParams },
 
-    /// # Create a player profile
+    /// # [3] Create a player profile
     ///
     /// Accounts expected:
     /// 0. `[signer]` The owner of the player profile
@@ -45,14 +45,14 @@ pub enum RaceInstruction {
     /// 2. `[]` The pfp account
     CreatePlayerProfile { params: CreatePlayerProfileParams },
 
-    /// # Register (Create) a server profile
+    /// # [4] Register (Create) a server profile
     ///
     /// Accounts expected:
     /// 0. `[signer]` The owner of the player profile
     /// 1. `[]` The server profile account to be created
     RegisterServer { params: RegisterServerParams },
 
-    /// # Settle game result
+    /// # [5] Settle game result
     ///
     /// Accounts expected:
     /// 0. `[signer]` The game transactor account
@@ -65,7 +65,7 @@ pub enum RaceInstruction {
     /// `[]` Every leaving players account, must be in the same order with Eject settles
     Settle { params: SettleParams },
 
-    /// # Vote
+    /// # [6] Vote
     ///
     /// Accounts expected:
     /// 0. `[signer]` The voter account, could be the wallet address of a server or a player.
@@ -73,7 +73,7 @@ pub enum RaceInstruction {
     /// 2. `[]` The votee account.
     Vote { params: VoteParams },
 
-    /// # Serve a game
+    /// # [7] Serve a game
     ///
     /// Accounts expected:
     /// 0. `[signer]` The payer acount (the server itself)
@@ -81,7 +81,7 @@ pub enum RaceInstruction {
     /// 2. `[]` The server account
     ServeGame{ params: ServeParams },
 
-    /// # Register a game to the registry
+    /// # [8] Register a game to the registry
     ///
     /// Accounts expected:
     /// 0. `[signer]` The payer acount (game account onwer?)
@@ -89,7 +89,7 @@ pub enum RaceInstruction {
     /// 2. `[]` The game account to be registered
     RegisterGame,
 
-    /// # Unregister a game to the registry
+    /// # [9] Unregister a game to the registry
     ///
     /// Accounts expected:
     /// 0. `[signer]` The payer acount (game account onwer?)
@@ -97,7 +97,7 @@ pub enum RaceInstruction {
     /// 2. `[]` The game account to be unregistered
     UnregisterGame,
 
-    /// # Join a game
+    /// # [10] Join a game
     ///
     /// Accounts expected:
     /// 0. `[signer]` The player to join the game
@@ -110,7 +110,7 @@ pub enum RaceInstruction {
     /// 6. `[]` The SPL token program
     JoinGame { params: JoinParams },
 
-    /// # Publish a game
+    /// # [11] Publish a game
     ///
     /// Accounts expected:
     /// 0. `[signer]` The payer account
@@ -124,7 +124,7 @@ pub enum RaceInstruction {
     /// 8. `[]` The system program
     PublishGame { params: PublishParams },
 
-    /// # Create recipient
+    /// # [12] Create recipient
     ///
     /// Accounts expected:
     /// 0. `[signer]` The payer account
@@ -134,7 +134,7 @@ pub enum RaceInstruction {
     /// 3+n. `[]` The Nth staking account for slots
     CreateRecipient { params: CreateRecipientParams },
 
-    /// # Add recipient slot
+    /// # [13] Add recipient slot
     ///
     /// Accounts expected:
     /// 0. `[signer]` The payer account, should be the cap account of recipient
@@ -143,7 +143,7 @@ pub enum RaceInstruction {
     /// 2+n. `[]` The Nth staking account for added slots
     AddRecipientSlots { params: AddRecipientSlotsParams },
 
-    /// # Assign recipient
+    /// # [14] Assign recipient
     ///
     /// Accounts expected:
     /// 0. `[signer]` The payer account, should be the cap account of recipient
@@ -151,7 +151,7 @@ pub enum RaceInstruction {
     /// 2. `[]` The account to assigned as the owner to a slot
     AssignRecipient { params: AssignRecipientParams },
 
-    /// # Recipient claim
+    /// # [15] Recipient claim
     ///
     /// Accounts expected:
     /// 0. `[signer]` The fee payer
@@ -212,6 +212,13 @@ mod tests {
         let data_bytes = [0, 12, 0, 0, 0, 116, 101, 115, 116, 32, 103, 97, 109, 101, 32, 35, 50, 10, 0, 10, 0, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 1, 2, 3, 4];
         assert_eq!(data_ix_ser, data_bytes);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_ser_create_recipient() -> anyhow::Result<()> {
+        let data = [12, 1, 0, 0, 0, 0, 0, 198, 250, 122, 243, 190, 219, 173, 58, 61, 101, 243, 106, 171, 201, 116, 49, 177, 187, 228, 194, 210, 246, 224, 228, 124, 166, 2, 3, 69, 47, 93, 97, 153, 159, 158, 51, 166, 94, 248, 123, 51, 139, 8, 98, 46, 160, 255, 99, 63, 79, 190, 151, 195, 156, 10, 194, 43, 231, 62, 154, 159, 247, 15, 199, 1, 0, 0, 0, 1, 188, 53, 104, 156, 38, 144, 66, 219, 138, 121, 89, 91, 126, 38, 194, 57, 148, 14, 89, 226, 149, 9, 241, 111, 37, 230, 13, 67, 247, 153, 215, 162, 1, 0, 0, 228, 11, 84, 2, 0, 0, 0];
+        let ix = RaceInstruction::unpack(&data).unwrap();
         Ok(())
     }
 

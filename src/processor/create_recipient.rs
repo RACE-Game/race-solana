@@ -68,7 +68,7 @@ pub fn process(
         slots,
     };
 
-    if recipient_account.data_len() != RECIPIENT_ACCOUNT_LEN {
+    if recipient_account.data_len() < RECIPIENT_ACCOUNT_LEN {
         return Err(ProgramError::AccountDataTooSmall);
     }
 

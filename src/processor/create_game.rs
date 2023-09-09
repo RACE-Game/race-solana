@@ -44,7 +44,7 @@ pub fn process(
 
     let recipient_account = next_account_info(accounts_iter)?;
 
-    if !recipient_account.data_is_empty() {
+    if recipient_account.data_is_empty() {
         return Err(ProgramError::InvalidAccountData);
     }
     let recipient_addr = recipient_account.key.to_owned();
