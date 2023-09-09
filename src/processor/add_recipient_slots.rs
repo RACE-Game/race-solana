@@ -19,6 +19,10 @@ pub fn process(
     let recipient_account = next_account_info(accounts_iter)?;
     let token_program = next_account_info(accounts_iter)?;
 
+    if !payer.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
     let mut recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
 
     if recipient_state.cap_addr.ne(payer.key) {

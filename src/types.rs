@@ -3,7 +3,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
-use crate::state::RecipientSlot;
+use crate::state::{RecipientSlot, EntryType};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct TokenInfo {
@@ -15,8 +15,7 @@ pub struct TokenInfo {
 pub struct CreateGameAccountParams {
     pub title: String,
     pub max_players: u16,
-    pub min_deposit: u64,
-    pub max_deposit: u64,
+    pub entry_type: EntryType,
     pub data: Vec<u8>,
 }
 

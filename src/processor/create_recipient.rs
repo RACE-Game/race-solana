@@ -9,7 +9,7 @@ use solana_program::{
 use spl_token::{state::Account, instruction::{AuthorityType, set_authority}};
 
 use crate::{
-    constants::RECIPIENT_ACCOUNT_LEN, state::RecipientState, types::CreateRecipientParams,
+    constants::RECIPIENT_ACCOUNT_LEN, state::RecipientState, types::CreateRecipientParams, error::ProcessError,
 };
 
 #[inline(never)]
@@ -24,9 +24,17 @@ pub fn process(
     let recipient_account = next_account_info(accounts_iter)?;
     let token_program = next_account_info(accounts_iter)?;
 
+    if !payer.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
     let CreateRecipientParams { slots } = params;
 
     let (pda, _bump_seed) = Pubkey::find_program_address(&[recipient_account.key.as_ref()], program_id);
+
+    if slots.is_empty() {
+        return Err(ProcessError::EmptyRecipientSlots)?;
+    }
 
     for slot in slots.iter() {
         let slot_stake_account = next_account_info(accounts_iter)?;

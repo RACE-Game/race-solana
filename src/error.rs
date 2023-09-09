@@ -121,7 +121,11 @@ pub enum ProcessError {
 
     /// 1D
     #[error("No capacibility to update recipient account")]
-    NoRecipientUpdateCap
+    NoRecipientUpdateCap,
+
+    /// 1E
+    #[error("Empty recipient slots")]
+    EmptyRecipientSlots,
 }
 
 impl From<ProcessError> for ProgramError {

@@ -9,8 +9,11 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::{state::{GameState, PlayerJoin}, constants::GAME_ACCOUNT_LEN};
 use crate::types::CreateGameAccountParams;
+use crate::{
+    constants::GAME_ACCOUNT_LEN,
+    state::{GameState, PlayerJoin},
+};
 use spl_token::{
     instruction::{set_authority, AuthorityType},
     state::Mint,
@@ -38,6 +41,13 @@ pub fn process(
     let token_program = next_account_info(accounts_iter)?;
 
     let bundle_account = next_account_info(accounts_iter)?;
+
+    let recipient_account = next_account_info(accounts_iter)?;
+
+    if !recipient_account.data_is_empty() {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    let recipient_addr = recipient_account.key.to_owned();
 
     let token_state = Mint::unpack_unchecked(&token_account.data.borrow())?;
 
@@ -70,8 +80,6 @@ pub fn process(
         stake_account: *stake_account.key,
         // TODO: invalid owner
         owner: payer.key.clone(),
-        min_deposit: params.min_deposit,
-        max_deposit: params.max_deposit,
         transactor_addr: None,
         token_mint: *token_account.key,
         access_version: 0,
@@ -86,6 +94,8 @@ pub fn process(
         servers: Default::default(),
         unlock_time: None,
         votes: Default::default(),
+        entry_type: params.entry_type,
+        recipient_addr,
     };
 
     if game_account.data_len() != GAME_ACCOUNT_LEN {

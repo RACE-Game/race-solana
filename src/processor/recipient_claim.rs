@@ -21,6 +21,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let system_program = next_account_info(accounts_iter)?;
     let mut recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
 
+    if !payer.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
     for slot in recipient_state.slots.iter_mut() {
         let total_weights: u16 = slot.shares.iter().map(|s| s.weights).sum();
 

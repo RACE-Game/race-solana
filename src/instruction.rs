@@ -10,22 +10,22 @@ pub enum RaceInstruction {
     /// # Create a new game
     ///
     /// Accounts expected:
-    /// 0. `[signer]` The account of transactor.
-    /// 1. `[writable]` The game account, hold all necessary info about the game.
-    /// 2. `[writable]` The temp stake account.
-    /// 3. `[]` The mint account.
-    /// 4. `[]` The token program.
+    /// 0. `[signer]` The account of transactor
+    /// 1. `[writable]` The game account, hold all necessary info about the game
+    /// 2. `[writable]` The temp stake account
+    /// 3. `[]` The mint account
+    /// 4. `[]` The token program
     /// 5. `[]` The bundled data account
-    // TODO: add Game scene NFT to this ix
+    /// 6. `[]` The recipient account
     CreateGameAccount { params: CreateGameAccountParams },
 
     /// # Close a new game
     ///
     /// Accounts expected:
     /// 0. `[signer]` The account of game owner
-    /// 1. `[]` The account of game account.
-    /// 2. `[writable]` The game reg account.
-    /// 3. `[writable]` The stake account of game.
+    /// 1. `[]` The account of game account
+    /// 2. `[writable]` The game reg account
+    /// 3. `[writable]` The stake account of game
     /// 4. `[]` PDA account.
     /// 5. `[]` Token program.
     CloseGameAccount,
@@ -34,7 +34,7 @@ pub enum RaceInstruction {
     ///
     /// Accounts expected:
     /// 0. `[signer]` The account of game owner
-    /// 1. `[writable]` The registry account.
+    /// 1. `[writable]` The registry account
     CreateRegistry { params: CreateRegistrationParams },
 
     /// # Create a player profile
@@ -172,6 +172,8 @@ impl RaceInstruction {
 #[cfg(test)]
 mod tests {
 
+    use crate::state::EntryType;
+
     use super::*;
 
     #[test]
@@ -179,8 +181,10 @@ mod tests {
         let nodata_ix = RaceInstruction::CreateGameAccount{
             params: CreateGameAccountParams {
                 title: "test game".to_string(),
-                min_deposit: 30u64,
-                max_deposit: 60u64,
+                entry_type: EntryType::Cash {
+                    min_deposit: 10,
+                    max_deposit: 20,
+                },
                 max_players: 10u16,
                 data: vec![]
             }
@@ -189,8 +193,10 @@ mod tests {
         let data_ix = RaceInstruction::CreateGameAccount{
             params: CreateGameAccountParams {
                 title: "test game #2".to_string(),
-                min_deposit: 10u64,
-                max_deposit: 20u64,
+                entry_type: EntryType::Cash {
+                    min_deposit: 10,
+                    max_deposit: 20,
+                },
                 max_players: 10u16,
                 data: vec![1, 2, 3, 4],
             }

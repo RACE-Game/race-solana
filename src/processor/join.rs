@@ -1,8 +1,8 @@
+use crate::types::JoinParams;
 use crate::{
     error::ProcessError,
-    state::{GameState, PlayerJoin},
+    state::{EntryType, GameState, PlayerJoin},
 };
-use crate::types::JoinParams;
 ///! Player joins a game (cash, sng or tourney)
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -87,9 +87,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
         .iter()
         .any(|p| p.position == params.position)
     {
-        if let Some(pos) = (0..game_state.max_players).into_iter().find(|&i| {
-            !game_state.players.iter().any(|p| p.position == i as u16)
-        }) {
+        if let Some(pos) = (0..game_state.max_players)
+            .into_iter()
+            .find(|&i| !game_state.players.iter().any(|p| p.position == i as u16))
+        {
             position = pos;
         } else {
             return Err(ProcessError::PositionTakenAlready)?;
@@ -115,15 +116,23 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
         verify_key: params.verify_key,
     });
 
-    // Check player's deposit
-    if params.amount < game_state.min_deposit || params.amount > game_state.max_deposit {
-        msg!(
-            "deposit: {}, min: {}, max: {}",
-            params.amount,
-            game_state.min_deposit,
-            game_state.max_deposit
-        );
-        return Err(ProcessError::InvalidDeposit)?;
+    match &game_state.entry_type {
+        EntryType::Cash {
+            min_deposit,
+            max_deposit,
+        } => {
+            // Check player's deposit
+            if params.amount < *min_deposit || params.amount > *max_deposit {
+                msg!(
+                    "deposit: {}, min: {}, max: {}",
+                    params.amount,
+                    min_deposit,
+                    max_deposit
+                );
+                return Err(ProcessError::InvalidDeposit)?;
+            }
+        }
+        _ => unimplemented!(),
     }
 
     // Transfer player deposit to game stake account

@@ -24,6 +24,15 @@ pub enum EntryType {
     }
 }
 
+impl Default for EntryType {
+    fn default() -> Self {
+        EntryType::Cash {
+            min_deposit: 1,
+            max_deposit: 9999,
+        }
+    }
+}
+
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug)]
 pub struct PlayerJoin {
@@ -66,10 +75,6 @@ pub struct GameState {
     pub owner: Pubkey,
     // mint id of the token used for game
     pub token_mint: Pubkey,
-    // minimum deposit for joining the game
-    pub min_deposit: u64,
-    // maximum deposit allowed in game
-    pub max_deposit: u64,
     // addr of the first server joined the game
     pub transactor_addr: Option<Pubkey>,
     // a serial number, increased by 1 after each PlayerJoin or ServerJoin
@@ -90,6 +95,10 @@ pub struct GameState {
     pub votes: Box<Vec<Vote>>,
     // unlock time
     pub unlock_time: Option<u64>,
+    // the entry type
+    pub entry_type: EntryType,
+    // the recipient account
+    pub recipient_addr: Pubkey,
 }
 
 impl IsInitialized for GameState {
