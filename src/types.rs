@@ -3,7 +3,50 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
-use crate::state::{RecipientSlot, EntryType};
+use crate::state::{EntryType, RecipientSlotOwner, RecipientSlotType, RecipientSlot, RecipientSlotShare};
+
+#[cfg_attr(test, derive(PartialEq, Clone))]
+#[derive(BorshDeserialize, BorshSerialize, Debug)]
+pub struct RecipientSlotShareInit {
+    pub owner: RecipientSlotOwner,
+    pub weights: u16,
+    pub claim_amount_cap: u64,
+}
+
+impl From<RecipientSlotShareInit> for RecipientSlotShare {
+    fn from(value: RecipientSlotShareInit) -> Self {
+        let RecipientSlotShareInit { owner, weights, claim_amount_cap } = value;
+        Self {
+            owner,
+            weights,
+            claim_amount: 0,
+            claim_amount_cap,
+        }
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct RecipientSlotInit {
+    pub id: u8,
+    pub slot_type: RecipientSlotType,
+    pub token_addr: Pubkey,
+    pub stake_addr: Pubkey,
+    pub init_shares: Vec<RecipientSlotShareInit>,
+}
+
+impl From<RecipientSlotInit> for RecipientSlot {
+    fn from(value: RecipientSlotInit) -> Self {
+        let RecipientSlotInit { id, slot_type, token_addr, stake_addr, init_shares } = value;
+        let shares = init_shares.into_iter().map(Into::into).collect();
+        Self {
+            id,
+            slot_type,
+            token_addr,
+            stake_addr,
+            shares,
+        }
+    }
+}
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct TokenInfo {
@@ -131,12 +174,7 @@ pub struct PublishParams {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct CreateRecipientParams {
-    pub slots: Vec<RecipientSlot>
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct AddRecipientSlotsParams {
-    pub slots: Vec<RecipientSlot>
+    pub slots: Vec<RecipientSlotInit>
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]

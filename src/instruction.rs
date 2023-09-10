@@ -1,6 +1,6 @@
 use crate::types::{
     CreateGameAccountParams, CreatePlayerProfileParams, CreateRegistrationParams, JoinParams,
-    PublishParams, RegisterServerParams, SettleParams, VoteParams, ServeParams, CreateRecipientParams, AssignRecipientParams, AddRecipientSlotsParams,
+    PublishParams, RegisterServerParams, SettleParams, VoteParams, ServeParams, CreateRecipientParams, AssignRecipientParams,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
@@ -134,16 +134,7 @@ pub enum RaceInstruction {
     /// 3+n. `[]` The Nth staking account for slots
     CreateRecipient { params: CreateRecipientParams },
 
-    /// # [13] Add recipient slot
-    ///
-    /// Accounts expected:
-    /// 0. `[signer]` The payer account, should be the cap account of recipient
-    /// 1. `[writable]` The recipient account
-    /// 2. `[]` The token program
-    /// 2+n. `[]` The Nth staking account for added slots
-    AddRecipientSlots { params: AddRecipientSlotsParams },
-
-    /// # [14] Assign recipient
+    /// # [13] Assign recipient
     ///
     /// Accounts expected:
     /// 0. `[signer]` The payer account, should be the cap account of recipient
@@ -151,7 +142,7 @@ pub enum RaceInstruction {
     /// 2. `[]` The account to assigned as the owner to a slot
     AssignRecipient { params: AssignRecipientParams },
 
-    /// # [15] Recipient claim
+    /// # [14] Recipient claim
     ///
     /// Accounts expected:
     /// 0. `[signer]` The fee payer
