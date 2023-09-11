@@ -117,6 +117,9 @@ pub fn process(
                 }
                 op_type = 2;
             }
+            SettleOp::AssignSlot(_identifier) => {
+                unimplemented!()
+            }
         }
     }
 
