@@ -45,7 +45,7 @@ pub struct RecipientSlot {
 #[derive(BorshDeserialize, BorshSerialize, Debug)]
 pub struct RecipientState {
     pub is_initialized: bool,
-    pub cap_addr: Pubkey,
+    pub cap_addr: Option<Pubkey>,
     pub slots: Vec<RecipientSlot>,
 }
 

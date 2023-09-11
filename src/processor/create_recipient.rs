@@ -65,7 +65,7 @@ pub fn process(
     let slots = slots.into_iter().map(Into::into).collect();
     let recipient_state = RecipientState {
         is_initialized: true,
-        cap_addr: cap_account.key.clone(),
+        cap_addr: Some(cap_account.key.clone()),
         slots,
     };
 

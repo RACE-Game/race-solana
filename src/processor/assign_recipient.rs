@@ -1,6 +1,6 @@
 use solana_program::{account_info::{AccountInfo, next_account_info}, entrypoint::ProgramResult, pubkey::Pubkey, program_pack::Pack, program_error::ProgramError};
 
-use crate::{types::AssignRecipientParams, state::{RecipientState, RecipientSlotOwner}, error::ProcessError};
+use crate::{types::AssignRecipientParams, state::{RecipientState, RecipientSlotOwner}};
 
 #[inline(never)]
 pub fn process(
@@ -22,10 +22,6 @@ pub fn process(
     }
 
     let mut recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
-
-    if recipient_state.cap_addr.ne(payer.key) {
-        return Err(ProcessError::NoRecipientUpdateCap)?;
-    }
 
     for slot in recipient_state.slots.iter_mut() {
         for share in slot.shares.iter_mut() {
