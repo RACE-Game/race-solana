@@ -7,14 +7,16 @@
 //! 1. All changes are sum up to zero.
 //! 2. Player without assets must be ejected.
 
+use crate::state::RecipientState;
+use crate::types::{SettleOp, SettleParams, Transfer};
 use crate::{error::ProcessError, state::GameState};
-use crate::types::{SettleOp, SettleParams};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
+    msg,
     program_error::ProgramError,
     program_pack::Pack,
-    pubkey::Pubkey, msg,
+    pubkey::Pubkey,
 };
 
 use super::misc::{validate_receiver_account, TransferSource};
@@ -24,7 +26,7 @@ pub fn process(
     accounts: &[AccountInfo],
     params: SettleParams,
 ) -> ProgramResult {
-    let SettleParams { settles } = params;
+    let SettleParams { settles, transfers } = params;
 
     let account_iter = &mut accounts.iter();
 
@@ -35,6 +37,8 @@ pub fn process(
     let stake_account = next_account_info(account_iter)?;
 
     let pda_account = next_account_info(account_iter)?;
+
+    let recipient_account = next_account_info(account_iter)?;
 
     let token_program = next_account_info(account_iter)?;
 
@@ -141,6 +145,22 @@ pub fn process(
         let receiver_ata = next_account_info(account_iter)?;
         validate_receiver_account(&addr, &game_state.token_mint, receiver_ata.key)?;
         transfer_source.transfer(receiver_ata, amount)?;
+    }
+
+    let recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
+
+    // Handle commission transfers
+    for Transfer { slot_id, amount } in transfers {
+        let slot_stake_account = next_account_info(account_iter)?;
+        if let Some(slot) = recipient_state.slots.iter().find(|s| s.id == slot_id) {
+            if slot_stake_account.key.eq(&slot.stake_addr) {
+                transfer_source.transfer(slot_stake_account, amount)?;
+            } else {
+                return Err(ProcessError::InvalidSlotStakeAccount)?;
+            }
+        } else {
+            return Err(ProcessError::InvalidSlotId)?;
+        }
     }
 
     game_state.settle_version += 1;

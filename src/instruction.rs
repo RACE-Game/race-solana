@@ -59,10 +59,12 @@ pub enum RaceInstruction {
     /// 1. `[writable]` The game account
     /// 2. `[writable]` The stake account, must match the one in game account
     /// 3. `[]` PDA account
-    /// 4. `[]` The token program
-    /// 5. `[]` The system program
+    /// 4. `[]` The recipient account
+    /// 5. `[]` The token program
+    /// 6. `[]` The system program
     /// Following:
     /// `[]` Every leaving players account, must be in the same order with Eject settles
+    /// `[]` Every recipient slot accounts to receive transfer
     Settle { params: SettleParams },
 
     /// # [6] Vote

@@ -130,8 +130,15 @@ pub struct Settle {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+pub struct Transfer {
+    pub slot_id: u8,
+    pub amount: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct SettleParams {
     pub settles: Vec<Settle>,
+    pub transfers: Vec<Transfer>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]

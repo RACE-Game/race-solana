@@ -126,6 +126,14 @@ pub enum ProcessError {
     /// 1E
     #[error("Empty recipient slots")]
     EmptyRecipientSlots,
+
+    /// 1F
+    #[error("Invalid slot id")]
+    InvalidSlotId,
+
+    /// 20
+    #[error("Invalid slot stake account")]
+    InvalidSlotStakeAccount,
 }
 
 impl From<ProcessError> for ProgramError {

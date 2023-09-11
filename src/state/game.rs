@@ -15,7 +15,6 @@ pub enum EntryType {
         max_deposit: u64,
     },
     Ticket {
-        recipient_addr: Pubkey,
         slot_id: u8,
         amount: u64,
     },
