@@ -10,17 +10,15 @@ use crate::state::{EntryType, RecipientSlotOwner, RecipientSlotType, RecipientSl
 pub struct RecipientSlotShareInit {
     pub owner: RecipientSlotOwner,
     pub weights: u16,
-    pub claim_amount_cap: u64,
 }
 
 impl From<RecipientSlotShareInit> for RecipientSlotShare {
     fn from(value: RecipientSlotShareInit) -> Self {
-        let RecipientSlotShareInit { owner, weights, claim_amount_cap } = value;
+        let RecipientSlotShareInit { owner, weights } = value;
         Self {
             owner,
             weights,
             claim_amount: 0,
-            claim_amount_cap,
         }
     }
 }
