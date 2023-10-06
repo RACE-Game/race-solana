@@ -138,6 +138,7 @@ pub struct Transfer {
 pub struct SettleParams {
     pub settles: Vec<Settle>,
     pub transfers: Vec<Transfer>,
+    pub checkpoint: Vec<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]

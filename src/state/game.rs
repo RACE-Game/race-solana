@@ -64,6 +64,8 @@ pub struct Vote {
 #[derive(Default, BorshDeserialize, BorshSerialize, Debug)]
 pub struct GameState {
     pub is_initialized: bool,
+    // the contract version, used for upgrade
+    pub version: String,
     // game name displayed on chain
     pub title: String,
     // addr to the game core logic program on Arweave
@@ -98,6 +100,10 @@ pub struct GameState {
     pub entry_type: EntryType,
     // the recipient account
     pub recipient_addr: Pubkey,
+    // the checkpoint state
+    pub checkpoint: Box<Vec<u8>>,
+    // the value of access version when checkpoint is set
+    pub checkpoint_access_version: u64,
 }
 
 impl IsInitialized for GameState {

@@ -73,6 +73,7 @@ pub fn process(
 
     let game_state = GameState {
         is_initialized: true,
+        version: "0.2.2".into(),
         title: params.title,
         // TODO: invalid bundle account
         bundle_addr: *bundle_account.key,
@@ -96,6 +97,8 @@ pub fn process(
         votes: Default::default(),
         entry_type: params.entry_type,
         recipient_addr,
+        checkpoint: Default::default(),
+        checkpoint_access_version: 0,
     };
 
     if game_account.data_len() != GAME_ACCOUNT_LEN {

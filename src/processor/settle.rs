@@ -26,7 +26,7 @@ pub fn process(
     accounts: &[AccountInfo],
     params: SettleParams,
 ) -> ProgramResult {
-    let SettleParams { settles, transfers } = params;
+    let SettleParams { settles, transfers, checkpoint } = params;
 
     let account_iter = &mut accounts.iter();
 
@@ -167,6 +167,8 @@ pub fn process(
     }
 
     game_state.settle_version += 1;
+    game_state.checkpoint = Box::new(checkpoint);
+    game_state.checkpoint_access_version = game_state.access_version;
     GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
 
     Ok(())
