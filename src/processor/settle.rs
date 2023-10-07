@@ -123,6 +123,8 @@ pub fn process(
         }
     }
 
+    sum += transfers.iter().map(|t| t.amount as i64).sum::<i64>();
+
     if sum != 0 {
         return Err(ProcessError::InvalidSettleAmounts)?;
     }
