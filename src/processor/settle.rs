@@ -100,7 +100,7 @@ pub fn process(
                 } else {
                     return Err(ProcessError::InvalidSettlePlayerAddress)?;
                 }
-                sum.checked_add(i128::from(amt))
+                sum = sum.checked_add(i128::from(amt))
                     .ok_or(ProcessError::SettleValidationOverflow)?;
             }
             SettleOp::Sub(amt) => {
@@ -119,7 +119,7 @@ pub fn process(
                 } else {
                     return Err(ProcessError::InvalidSettlePlayerAddress)?;
                 }
-                sum.checked_sub(i128::from(amt))
+                sum = sum.checked_sub(i128::from(amt))
                     .ok_or(ProcessError::SettleValidationOverflow)?;
                 op_type = 1;
             }
@@ -142,7 +142,7 @@ pub fn process(
         }
     }
 
-    sum.checked_add(transfers.iter().map(|t| i128::from(t.amount)).sum::<i128>())
+    sum = sum.checked_add(transfers.iter().map(|t| i128::from(t.amount)).sum::<i128>())
         .ok_or(ProcessError::SettleValidationOverflow)?;
 
     if sum != 0 {
