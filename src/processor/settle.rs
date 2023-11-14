@@ -55,9 +55,6 @@ pub fn process(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Ensure changes are sum up to zero
-    let mut sum = 0i64;
-
     // Collect the pays.
     let mut pays: Vec<(Pubkey, u64)> = Vec::new();
 
@@ -82,6 +79,9 @@ pub fn process(
         return Err(ProcessError::InvalidStakeAccount)?;
     }
 
+    // Ensure changes are sum up to zero
+    let mut sum = 0i128;
+
     for settle in settles.into_iter() {
         match settle.op {
             SettleOp::Add(amt) => {
@@ -100,7 +100,8 @@ pub fn process(
                 } else {
                     return Err(ProcessError::InvalidSettlePlayerAddress)?;
                 }
-                sum += amt as i64;
+                sum.checked_add(i128::from(amt))
+                    .ok_or(ProcessError::SettleValidationOverflow)?;
             }
             SettleOp::Sub(amt) => {
                 if op_type == 2 {
@@ -118,7 +119,8 @@ pub fn process(
                 } else {
                     return Err(ProcessError::InvalidSettlePlayerAddress)?;
                 }
-                sum -= amt as i64;
+                sum.checked_sub(i128::from(amt))
+                    .ok_or(ProcessError::SettleValidationOverflow)?;
                 op_type = 1;
             }
             SettleOp::Eject => {
@@ -140,7 +142,8 @@ pub fn process(
         }
     }
 
-    sum += transfers.iter().map(|t| t.amount as i64).sum::<i64>();
+    sum.checked_add(transfers.iter().map(|t| i128::from(t.amount)).sum::<i128>())
+        .ok_or(ProcessError::SettleValidationOverflow)?;
 
     if sum != 0 {
         return Err(ProcessError::InvalidSettleAmounts)?;

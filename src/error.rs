@@ -142,6 +142,10 @@ pub enum ProcessError {
     /// 22
     #[error("Invalid next settle version")]
     InvalidNextSettleVersion,
+
+    /// 23
+    #[error("Settle validation overflow")]
+    SettleValidationOverflow,
 }
 
 impl From<ProcessError> for ProgramError {
