@@ -134,6 +134,14 @@ pub enum ProcessError {
     /// 20
     #[error("Invalid slot stake account")]
     InvalidSlotStakeAccount,
+
+    /// 21
+    #[error("Invalid settle version")]
+    InvalidSettleVersion,
+
+    /// 22
+    #[error("Invalid next settle version")]
+    InvalidNextSettleVersion,
 }
 
 impl From<ProcessError> for ProgramError {

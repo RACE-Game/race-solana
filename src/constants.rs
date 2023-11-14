@@ -6,3 +6,4 @@ pub const GAME_ACCOUNT_LEN: usize = 4000;
 pub const RECIPIENT_ACCOUNT_LEN: usize = 2000;
 pub const REGISTRY_ACCOUNT_LEN: usize = 9276;
 pub const MAX_SERVER_NUM: usize = 10;
+pub const MAX_SETTLE_INCREASEMENT: u64 = 5;

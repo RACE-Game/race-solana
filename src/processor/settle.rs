@@ -7,6 +7,7 @@
 //! 1. All changes are sum up to zero.
 //! 2. Player without assets must be ejected.
 
+use crate::constants::MAX_SETTLE_INCREASEMENT;
 use crate::state::RecipientState;
 use crate::types::{SettleOp, SettleParams, Transfer};
 use crate::{error::ProcessError, state::GameState};
@@ -26,7 +27,13 @@ pub fn process(
     accounts: &[AccountInfo],
     params: SettleParams,
 ) -> ProgramResult {
-    let SettleParams { settles, transfers, checkpoint } = params;
+    let SettleParams {
+        settles,
+        transfers,
+        checkpoint,
+        settle_version,
+        next_settle_version,
+    } = params;
 
     let account_iter = &mut accounts.iter();
 
@@ -59,6 +66,16 @@ pub fn process(
     let mut op_type = 0;
     let mut game_state = GameState::unpack(&game_account.try_borrow_mut_data()?)?;
 
+    if game_state.settle_version != settle_version {
+        return Err(ProcessError::InvalidSettleVersion)?;
+    }
+
+    if next_settle_version > game_state.settle_version + MAX_SETTLE_INCREASEMENT
+        || next_settle_version <= game_state.settle_version
+    {
+        return Err(ProcessError::InvalidNextSettleVersion)?;
+    }
+
     if stake_account.key.ne(&game_state.stake_account) {
         msg!("Stake account expected: {:?}", game_state.stake_account);
         msg!("Stake account given: {:?}", stake_account.key);
@@ -74,7 +91,7 @@ pub fn process(
                 if let Some(player) = game_state
                     .players
                     .iter_mut()
-                    .find(|p| p.addr.eq(&settle.addr))
+                    .find(|p| p.position.eq(&settle.position))
                 {
                     player.balance = player
                         .balance
@@ -92,7 +109,7 @@ pub fn process(
                 if let Some(player) = game_state
                     .players
                     .iter_mut()
-                    .find(|p| p.addr.eq(&settle.addr))
+                    .find(|p| p.position.eq(&settle.position))
                 {
                     player.balance = player
                         .balance
@@ -108,7 +125,7 @@ pub fn process(
                 let idx = game_state
                     .players
                     .iter()
-                    .position(|p| p.addr.eq(&settle.addr));
+                    .position(|p| p.position.eq(&settle.position));
                 if let Some(idx) = idx {
                     let player = game_state.players.remove(idx);
                     pays.push((player.addr, player.balance));
@@ -168,7 +185,7 @@ pub fn process(
         }
     }
 
-    game_state.settle_version += 1;
+    game_state.settle_version = next_settle_version;
     game_state.checkpoint = Box::new(checkpoint);
     game_state.checkpoint_access_version = game_state.access_version;
     GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
