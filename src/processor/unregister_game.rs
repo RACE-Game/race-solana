@@ -1,4 +1,3 @@
-// use arrayref::array_mut_ref;
 use crate::{
     error::ProcessError,
     state::{GameState, RegistryState},
@@ -42,7 +41,8 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
         return Err(ProcessError::InvalidOwner)?;
     }
 
-    {
+    // An empty game account can be removed without checking
+    if !game_account.data_is_empty() {
         let game_state = GameState::unpack(&game_account.try_borrow_data()?)?;
         if !game_state.is_initialized {
             return Err(ProgramError::UninitializedAccount);

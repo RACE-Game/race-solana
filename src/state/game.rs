@@ -1,4 +1,4 @@
-use crate::constants::GAME_ACCOUNT_LEN;
+use crate::{constants::GAME_ACCOUNT_LEN, error::ProcessError};
 use crate::types::VoteType;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
@@ -102,8 +102,6 @@ pub struct GameState {
     pub recipient_addr: Pubkey,
     // the checkpoint state
     pub checkpoint: Box<Vec<u8>>,
-    // the value of access version when checkpoint is set
-    pub checkpoint_access_version: u64,
 }
 
 impl IsInitialized for GameState {
@@ -122,7 +120,7 @@ impl Pack for GameState {
     }
 
     fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
-        Self::deserialize(&mut src).map_err(|_| ProgramError::InvalidAccountData)
+        Ok(Self::deserialize(&mut src).map_err(|_| ProcessError::GameDeserializationFailed)?)
     }
 }
 

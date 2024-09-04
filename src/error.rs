@@ -146,6 +146,26 @@ pub enum ProcessError {
     /// 23
     #[error("Settle validation overflow")]
     SettleValidationOverflow,
+
+    /// 24
+    #[error("Server account deserialization failed")]
+    ServerDeserializationFailed,
+
+    /// 25
+    #[error("Game account deserialization failed")]
+    GameDeserializationFailed,
+
+    /// 26
+    #[error("Registry account deserialization failed")]
+    RegistryDeserializationFailed,
+
+    /// 27
+    #[error("Recipient account deserialization failed")]
+    RecipientDeserializationFailed,
+
+    /// 28
+    #[error("Profile account deserialization failed")]
+    ProfileDeserializationFailed,
 }
 
 impl From<ProcessError> for ProgramError {

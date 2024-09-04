@@ -16,7 +16,6 @@
             buildInputs = with pkgs; [
               rustc
               cargo
-              solana-cli
             ];
           };
         }

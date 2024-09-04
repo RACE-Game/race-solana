@@ -149,12 +149,12 @@ pub fn process(
         return Err(ProcessError::InvalidSettleAmounts)?;
     }
 
-    // Ensure all players' assets are greater than zero
-    for player in game_state.players.iter() {
-        if player.balance == 0 {
-            return Err(ProcessError::UnhandledEliminatedPlayer)?;
-        }
-    }
+    // // Ensure all players' assets are greater than zero
+    // for player in game_state.players.iter() {
+    //     if player.balance == 0 {
+    //         return Err(ProcessError::UnhandledEliminatedPlayer)?;
+    //     }
+    // }
 
     // Transfer tokens
     let transfer_source = TransferSource::try_new(
@@ -190,7 +190,6 @@ pub fn process(
 
     game_state.settle_version = next_settle_version;
     game_state.checkpoint = Box::new(checkpoint);
-    game_state.checkpoint_access_version = game_state.access_version;
     GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
 
     Ok(())

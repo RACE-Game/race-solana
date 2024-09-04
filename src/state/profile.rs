@@ -1,4 +1,4 @@
-use crate::constants::PROFILE_ACCOUNT_LEN;
+use crate::{constants::PROFILE_ACCOUNT_LEN, error::ProcessError};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     program_error::ProgramError,
@@ -33,7 +33,7 @@ impl Pack for PlayerState {
     }
 
     fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
-        Self::deserialize(&mut src).map_err(|_| ProgramError::InvalidAccountData)
+        Ok(Self::deserialize(&mut src).map_err(|_| ProcessError::ProfileDeserializationFailed)?)
     }
 }
 

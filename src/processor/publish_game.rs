@@ -1,4 +1,4 @@
-use mpl_token_metadata::instruction::{create_master_edition_v3, create_metadata_accounts_v3};
+use mpl_token_metadata::{instructions::{CreateMasterEditionV3Builder, CreateMetadataAccountV3Builder}, types::DataV2};
 use crate::types::PublishParams;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -73,12 +73,12 @@ pub fn process(
 
     msg!("Recording creators of NFT ...");
     let creator = vec![
-        mpl_token_metadata::state::Creator {
+        mpl_token_metadata::types::Creator {
             address: payer.key.clone(),
             verified: false,
             share: 100,
         },
-        mpl_token_metadata::state::Creator {
+        mpl_token_metadata::types::Creator {
             address: mint_account.key.clone(),
             verified: false,
             share: 0,
@@ -87,24 +87,32 @@ pub fn process(
 
     // Create metadata account
     msg!("Creating metadata account: {}", metadata_pda.key);
-    let create_metadata_account_ix = create_metadata_accounts_v3(
-        metaplex_program.key.clone(),
-        metadata_pda.key.clone(),
-        mint_account.key.clone(),
-        payer.key.clone(),
-        payer.key.clone(),
-        payer.key.clone(),
-        params.name,
-        params.symbol,
-        params.uri,
-        Some(creator), // creator
-        1,             // fee basis point
-        true,          // update authority to signer
-        false,         // is mutable?
-        None,          // optional collection
-        None,          // optional use
-        None,          // optional collection detail
-    );
+    // pub name: String,
+    // pub symbol: String,
+    // pub uri: String,
+    // pub seller_fee_basis_points: u16,
+    // pub creators: Option<Vec<Creator>>,
+    // pub collection: Option<Collection>,
+    // pub uses: Option<Uses>,
+
+    let create_metadata_account_ix = CreateMetadataAccountV3Builder::new()
+        .payer(payer.key.clone())
+        .mint(mint_account.key.clone())
+        .metadata(metadata_pda.key.clone())
+        .update_authority(payer.key.clone(), true)
+        .mint_authority(payer.key.clone())
+        .is_mutable(false)
+        .update_authority(payer.key.clone(), true)
+        .data(DataV2 {
+            name: params.name,
+            symbol: params.symbol,
+            uri: params.uri,
+            seller_fee_basis_points: 0,
+            creators: Some(creator),
+            collection: None,
+            uses: None,
+        })
+        .instruction();
 
     invoke(
         &create_metadata_account_ix,
@@ -123,16 +131,15 @@ pub fn process(
     // Create master edition account
     // mint_authority and freeze_authority will be transfer to this account
     msg!("Creating master edition account: {}", edition_pda.key);
-    let create_master_edition_account_ix = create_master_edition_v3(
-        metaplex_program.key.clone(),
-        edition_pda.key.clone(),
-        mint_account.key.clone(),
-        payer.key.clone(), // update authority
-        payer.key.clone(), // mint authority
-        metadata_pda.key.clone(),
-        payer.key.clone(),
-        Some(0), // max_supply because token has been minted once
-    );
+    let create_master_edition_account_ix = CreateMasterEditionV3Builder::new()
+        .edition(edition_pda.key.clone())
+        .mint(mint_account.key.clone())
+        .mint_authority(payer.key.clone())
+        .update_authority(payer.key.clone())
+        .metadata(metadata_pda.key.clone())
+        .payer(payer.key.clone())
+        .max_supply(0)
+        .instruction();
 
     invoke(
         &create_master_edition_account_ix,

@@ -98,7 +98,6 @@ pub fn process(
         entry_type: params.entry_type,
         recipient_addr,
         checkpoint: Default::default(),
-        checkpoint_access_version: 0,
     };
 
     if game_account.data_len() != GAME_ACCOUNT_LEN {
