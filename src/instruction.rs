@@ -1,6 +1,6 @@
 use crate::types::{
     CreateGameAccountParams, CreatePlayerProfileParams, CreateRegistrationParams, JoinParams,
-    PublishParams, RegisterServerParams, SettleParams, VoteParams, ServeParams, CreateRecipientParams, AssignRecipientParams,
+    PublishParams, RegisterServerParams, SettleParams, VoteParams, ServeParams, CreateRecipientParams, AssignRecipientParams, DepositParams,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
@@ -27,7 +27,8 @@ pub enum RaceInstruction {
     /// 2. `[writable]` The game reg account
     /// 3. `[writable]` The stake account of game
     /// 4. `[]` PDA account.
-    /// 5. `[]` Token program.
+    /// 5. `[]` ATA account to receive remaining tokens
+    /// 6. `[]` Token program.
     CloseGameAccount,
 
     /// # [2] Create an on-chain "lobby" for game registration
@@ -102,9 +103,9 @@ pub enum RaceInstruction {
     /// # [10] Join a game
     ///
     /// Accounts expected:
-    /// 0. `[signer]` The player to join the game
-    /// 1.
-    /// 1. `[writable]` The temp account.
+    /// 0. `[signer]` The payer account
+    /// 1. `[]` The player account
+    /// 1. `[writable]` The temp account
     /// 2. `[writable]` The game account
     /// 3. `[]` The mint account.
     /// 4. `[writable]` The stake account that holds players' buyin assets
@@ -154,6 +155,20 @@ pub enum RaceInstruction {
     /// 4. `[]` The system program
     /// Rest. `[]` The stake account followed by the corresponding ATA to receive tokens
     RecipientClaim,
+
+    /// # [15] Deposit tokens to a game
+    ///
+    /// Accounts expected:
+    /// 0. `[signer]` The payer account
+    /// 1. `[]` The player account
+    /// 1. `[writable]` The temp account
+    /// 2. `[writable]` The game account
+    /// 3. `[]` The mint account
+    /// 4. `[writable]` The stake account that holds players' deposit assets
+    /// 5. `[writable]` The pda account
+    /// 6. `[]` The SPL token program
+    Deposit { params: DepositParams },
+
 }
 
 impl RaceInstruction {

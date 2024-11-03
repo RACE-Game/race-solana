@@ -13,7 +13,6 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
     sysvar::rent::Rent,
-    // system_instruction::transfer as system_transfer,
 };
 use spl_token::{
     instruction::{close_account, transfer},

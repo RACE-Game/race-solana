@@ -8,7 +8,7 @@
 //! 2. Player without assets must be ejected.
 
 use crate::constants::MAX_SETTLE_INCREASEMENT;
-use crate::state::RecipientState;
+use crate::state::{RecipientSlotOwner, RecipientState};
 use crate::types::{SettleOp, SettleParams, Transfer};
 use crate::{error::ProcessError, state::GameState};
 use solana_program::{
@@ -67,6 +67,8 @@ pub fn process(
         return Err(ProcessError::InvalidSettleVersion)?;
     }
 
+    let mut recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
+
     if next_settle_version > game_state.settle_version + MAX_SETTLE_INCREASEMENT
         || next_settle_version <= game_state.settle_version
     {
@@ -83,66 +85,62 @@ pub fn process(
     let mut sum = 0i128;
 
     for settle in settles.into_iter() {
+        let player = match game_state
+            .players
+            .iter_mut()
+            .find(|p| p.position == settle.position)
+        {
+            Some(p) => p,
+            None => return Err(ProcessError::InvalidSettlePlayerAddress)?,
+        };
+
         match settle.op {
             SettleOp::Add(amt) => {
                 if op_type != 0 {
                     return Err(ProcessError::InvalidOrderOfSettles)?;
                 }
-                if let Some(player) = game_state
-                    .players
-                    .iter_mut()
-                    .find(|p| p.position.eq(&settle.position))
-                {
-                    player.balance = player
-                        .balance
-                        .checked_add(amt)
-                        .ok_or(ProcessError::PlayerBalanceOverflow)?;
-                } else {
-                    return Err(ProcessError::InvalidSettlePlayerAddress)?;
-                }
-                sum = sum.checked_add(i128::from(amt))
+                player.balance = player
+                    .balance
+                    .checked_add(amt)
+                    .ok_or(ProcessError::PlayerBalanceOverflow)?;
+                sum = sum
+                    .checked_add(i128::from(amt))
                     .ok_or(ProcessError::SettleValidationOverflow)?;
             }
             SettleOp::Sub(amt) => {
                 if op_type == 2 {
                     return Err(ProcessError::InvalidOrderOfSettles)?;
                 }
-                if let Some(player) = game_state
-                    .players
-                    .iter_mut()
-                    .find(|p| p.position.eq(&settle.position))
-                {
-                    player.balance = player
-                        .balance
-                        .checked_sub(amt)
-                        .ok_or(ProcessError::PlayerBalanceOverflow)?;
-                } else {
-                    return Err(ProcessError::InvalidSettlePlayerAddress)?;
-                }
-                sum = sum.checked_sub(i128::from(amt))
+                player.balance = player
+                    .balance
+                    .checked_sub(amt)
+                    .ok_or(ProcessError::PlayerBalanceOverflow)?;
+                sum = sum
+                    .checked_sub(i128::from(amt))
                     .ok_or(ProcessError::SettleValidationOverflow)?;
                 op_type = 1;
             }
             SettleOp::Eject => {
-                let idx = game_state
-                    .players
-                    .iter()
-                    .position(|p| p.position.eq(&settle.position));
-                if let Some(idx) = idx {
-                    let player = game_state.players.remove(idx);
-                    pays.push((player.addr, player.balance));
-                } else {
-                    return Err(ProcessError::InvalidSettlePlayerAddress)?;
-                }
+                pays.push((player.addr, player.balance));
+                game_state.players.retain(|p| p.position != settle.position);
                 op_type = 2;
             }
-            SettleOp::AssignSlot(_identifier) => {
-                unimplemented!()
+            SettleOp::AssignSlot(id) => {
+                for slot in recipient_state.slots.iter_mut() {
+                    for share in slot.shares.iter_mut() {
+                        if let RecipientSlotOwner::Unassigned { ref identifier } = share.owner {
+                            if id.eq(identifier) {
+                                share.owner = RecipientSlotOwner::Assigned { addr: player.addr.clone() };
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
-    sum = sum.checked_add(transfers.iter().map(|t| i128::from(t.amount)).sum::<i128>())
+    sum = sum
+        .checked_add(transfers.iter().map(|t| i128::from(t.amount)).sum::<i128>())
         .ok_or(ProcessError::SettleValidationOverflow)?;
 
     if sum != 0 {
@@ -171,8 +169,6 @@ pub fn process(
         validate_receiver_account(&addr, &game_state.token_mint, receiver_ata.key)?;
         transfer_source.transfer(receiver_ata, amount)?;
     }
-
-    let recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
 
     // Handle commission transfers
     for Transfer { slot_id, amount } in transfers {

@@ -17,6 +17,7 @@ mod vote;
 mod create_recipient;
 mod assign_recipient;
 mod recipient_claim;
+mod deposit;
 
 pub fn process(
     program_id: &Pubkey,
@@ -85,6 +86,10 @@ pub fn process(
         RaceInstruction::RecipientClaim => {
             msg!("Recipient claim");
             recipient_claim::process(program_id, accounts)
+        }
+        RaceInstruction::Deposit { params } => {
+            msg!("Deposit");
+            deposit::process(program_id, accounts, params)
         }
     }
 }
