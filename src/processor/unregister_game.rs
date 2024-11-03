@@ -3,15 +3,9 @@ use crate::{
     state::{GameState, RegistryState},
 };
 
+use borsh::BorshDeserialize;
 use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    entrypoint::ProgramResult,
-    msg,
-    program_error::ProgramError,
-    program_pack::Pack,
-    pubkey::Pubkey,
-    rent::Rent,
-    sysvar::Sysvar,
+    account_info::{next_account_info, AccountInfo}, entrypoint::ProgramResult, msg, program::invoke, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent, system_instruction, sysvar::Sysvar
 };
 
 #[inline(never)]
@@ -25,17 +19,7 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let mut registry_state = RegistryState::unpack(&registry_account.try_borrow_data()?)?;
-    if !registry_state.is_initialized {
-        return Err(ProgramError::UninitializedAccount);
-    }
-
-    {
-        let rent = Rent::get()?;
-        if !rent.is_exempt(registry_account.lamports(), RegistryState::LEN) {
-            return Err(ProgramError::AccountNotRentExempt);
-        }
-    }
+    let mut registry_state = RegistryState::try_from_slice(&registry_account.try_borrow_data()?)?;
 
     if registry_state.is_private && registry_state.owner.ne(payer.key) {
         return Err(ProcessError::InvalidOwner)?;
@@ -73,7 +57,11 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
         let unreg_game = registry_state.games.remove(unreg_idx);
         msg!("Unregitered game {}", unreg_game.addr);
 
-        RegistryState::pack(registry_state, &mut registry_account.try_borrow_mut_data()?)?;
+        let new_registry_account_data = borsh::to_vec(&registry_state)?;
+
+        // Shrink the account size
+        registry_account.realloc(new_registry_account_data.len(), false)?;
+        registry_account.try_borrow_mut_data()?.copy_from_slice(&new_registry_account_data);
 
         removed = true;
     }

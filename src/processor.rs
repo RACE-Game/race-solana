@@ -27,7 +27,7 @@ pub fn process(
     let instruction = RaceInstruction::unpack(instruction_data)?;
     msg!("Instruction: {:?}", instruction);
 
-    match instruction {
+    let result = match instruction {
         RaceInstruction::CreateGameAccount { params } => {
             create_game::process(program_id, accounts, params)
         }
@@ -91,5 +91,11 @@ pub fn process(
             msg!("Deposit");
             deposit::process(program_id, accounts, params)
         }
+    };
+
+    if let Err(ref e) = result {
+        msg!("Error in contract: {:?}", e);
     }
+
+    result
 }

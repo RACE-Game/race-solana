@@ -90,6 +90,7 @@ pub enum RaceInstruction {
     /// 0. `[signer]` The payer acount (game account onwer?)
     /// 1. `[writable]` The registry account
     /// 2. `[]` The game account to be registered
+    /// 3. `[]` The system program
     RegisterGame,
 
     /// # [9] Unregister a game to the registry
