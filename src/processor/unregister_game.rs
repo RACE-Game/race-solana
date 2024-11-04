@@ -5,7 +5,7 @@ use crate::{
 
 use borsh::BorshDeserialize;
 use solana_program::{
-    account_info::{next_account_info, AccountInfo}, entrypoint::ProgramResult, msg, program::invoke, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent, system_instruction, sysvar::Sysvar
+    account_info::{next_account_info, AccountInfo}, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey,
 };
 
 #[inline(never)]
@@ -27,7 +27,7 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
 
     // An empty game account can be removed without checking
     if !game_account.data_is_empty() {
-        let game_state = GameState::unpack(&game_account.try_borrow_data()?)?;
+        let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
         if !game_state.is_initialized {
             return Err(ProgramError::UninitializedAccount);
         }

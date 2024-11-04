@@ -9,11 +9,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::types::CreateGameAccountParams;
-use crate::{
-    constants::GAME_ACCOUNT_LEN,
-    state::{GameState, PlayerJoin},
-};
+use crate::{processor::misc::pack_state_to_account, types::CreateGameAccountParams};
+use crate::state::{GameState, PlayerJoin};
 use spl_token::{
     instruction::{set_authority, AuthorityType},
     state::Mint,
@@ -43,6 +40,8 @@ pub fn process(
     let bundle_account = next_account_info(accounts_iter)?;
 
     let recipient_account = next_account_info(accounts_iter)?;
+
+    let system_program = next_account_info(accounts_iter)?;
 
     if recipient_account.data_is_empty() {
         return Err(ProgramError::InvalidAccountData);
@@ -100,13 +99,9 @@ pub fn process(
         checkpoint: Default::default(),
     };
 
-    if game_account.data_len() != GAME_ACCOUNT_LEN {
-        return Err(ProgramError::AccountDataTooSmall);
-    }
-
-    GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
-
     msg!("Created game account: {:?}", game_account.key);
+
+    pack_state_to_account(game_state, &game_account, &payer, &system_program)?;
 
     Ok(())
 }

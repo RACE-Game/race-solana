@@ -1,11 +1,10 @@
 use crate::{
-    error::ProcessError,
-    state::{GameReg, GameState, RegistryState},
+    error::ProcessError, processor::misc::pack_state_to_account, state::{GameReg, GameState, RegistryState}
 };
 
 use borsh::BorshDeserialize;
 use solana_program::{
-    account_info::{next_account_info, AccountInfo}, clock::Clock, entrypoint::ProgramResult, msg, program::invoke, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent, system_instruction, sysvar::Sysvar
+    account_info::{next_account_info, AccountInfo}, clock::Clock, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey, sysvar::Sysvar
 };
 
 
@@ -40,7 +39,7 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
         return Err(ProcessError::RegistrationIsFull)?;
     }
 
-    let game_state = GameState::unpack(&game_account.try_borrow_data()?)?;
+    let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
     if !game_state.is_initialized {
         return Err(ProgramError::UninitializedAccount);
     }
@@ -74,31 +73,13 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
 
     registry_state.games.push(reg_game);
 
-    let new_registry_account_data = borsh::to_vec(&registry_state)?;
-    msg!("Realloc registry account to {}", new_registry_account_data.len());
-    registry_account.realloc(new_registry_account_data.len(), false)?;
-
     msg!(
         "Registered game {} to {}",
         game_account.key.clone(),
         registry_account.key.clone()
     );
-    registry_account.try_borrow_mut_data()?.copy_from_slice(&new_registry_account_data);
 
-    msg!("Registry updated");
-    let rent = Rent::get()?;
-    let new_minimum_balance = rent.minimum_balance(registry_account.data_len());
-    let lamports_diff = new_minimum_balance.saturating_sub(registry_account.lamports());
-    if lamports_diff > 0 {
-        invoke(
-            &system_instruction::transfer(payer.key, registry_account.key, lamports_diff),
-            &[
-                payer.clone(),
-                registry_account.clone(),
-                system_program.clone(),
-            ],
-        )?;
-    }
+    pack_state_to_account(registry_state, &registry_account, &payer, &system_program)?;
 
     Ok(())
 }

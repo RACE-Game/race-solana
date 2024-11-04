@@ -1,14 +1,9 @@
 #![allow(dead_code)]
 use std::str::FromStr;
 
+use borsh::BorshSerialize;
 use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    msg,
-    program::{invoke, invoke_signed},
-    program_error::ProgramError,
-    program_pack::Pack,
-    pubkey::Pubkey,
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program::{invoke, invoke_signed}, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent, system_instruction, sysvar::Sysvar
 };
 
 use spl_associated_token_account::get_associated_token_address;
@@ -209,4 +204,38 @@ impl<'a> TransferSource<'a> {
 
         Ok(())
     }
+}
+
+pub fn pack_state_to_account<'a, T: BorshSerialize>(state: T, account: &AccountInfo<'a>, payer: &AccountInfo<'a>, system_program: &AccountInfo<'a>) -> ProgramResult {
+    let new_data = borsh::to_vec(&state)?;
+    let new_data_len = new_data.len();
+
+    if new_data_len != account.data_len() {
+        account.realloc(new_data_len, false)?;
+
+        // When the new data is bigger than the old data, we do realloc.
+        // And check if more lamports are required for rent-exempt.
+        if new_data_len > account.data_len() {
+
+            let rent = Rent::get()?;
+            let new_minimum_balance = rent.minimum_balance(new_data_len);
+            let lamports_diff = new_minimum_balance.saturating_sub(account.lamports());
+
+            msg!("Transfer {} lamports to make account rent-exempt({}).", lamports_diff, new_minimum_balance);
+            if lamports_diff > 0 {
+                invoke(
+                    &system_instruction::transfer(payer.key, account.key, lamports_diff),
+                    &[
+                        payer.clone(),
+                        account.clone(),
+                        system_program.clone(),
+                    ],
+                )?;
+            }
+        }
+    }
+
+    account.try_borrow_mut_data()?.copy_from_slice(&new_data);
+
+    Ok(())
 }

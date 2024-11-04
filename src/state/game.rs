@@ -1,9 +1,7 @@
-use crate::{constants::GAME_ACCOUNT_LEN, error::ProcessError};
 use crate::types::VoteType;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    program_error::ProgramError,
-    program_pack::{IsInitialized, Pack, Sealed},
+    program_pack::IsInitialized,
     pubkey::Pubkey,
 };
 
@@ -107,102 +105,5 @@ pub struct GameState {
 impl IsInitialized for GameState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
-    }
-}
-
-impl Sealed for GameState {}
-
-impl Pack for GameState {
-    const LEN: usize = GAME_ACCOUNT_LEN;
-
-    fn pack_into_slice(&self, mut dst: &mut [u8]) {
-        self.serialize(&mut dst).unwrap();
-    }
-
-    fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
-        Ok(Self::deserialize(&mut src).map_err(|_| ProcessError::GameDeserializationFailed)?)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-
-    use solana_program::borsh::get_instance_packed_len;
-
-    use super::*;
-
-    #[test]
-    fn test_state_len() -> anyhow::Result<()> {
-        let mut state = GameState::default();
-        state.is_initialized = true;
-        let s: String = "ABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCDE".into();
-        state.data = Box::new(vec![0; 1024]);
-        state.title = s.clone();
-        for _ in 0..32 {
-            state.players.push(PlayerJoin::default());
-        }
-        for _ in 0..10 {
-            let s = ServerJoin {
-                addr: Pubkey::default(),
-                endpoint: s.clone(),
-                access_version: 0,
-                verify_key: "key0".into(),
-            };
-            state.servers.push(s);
-        }
-        let game_state_len = get_instance_packed_len(&state)?;
-        println!("Game state len: {}", game_state_len);
-        assert!(game_state_len <= GAME_ACCOUNT_LEN);
-        assert_eq!(game_state_len, 3978);
-        Ok(())
-    }
-
-    #[test]
-    fn test_serialize_state() {
-        let state = PlayerJoin {
-            addr: Pubkey::new_unique(),
-            balance: 1,
-            position: 1,
-            access_version: 1,
-            verify_key: "key0".into(),
-        };
-        let data = [
-            0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 107, 101,
-            121, 48,
-        ];
-
-        let ser = state.try_to_vec().unwrap();
-        assert_eq!(ser, data);
-    }
-
-    fn make_game_state() -> GameState {
-        let mut state = GameState::default();
-        state.is_initialized = true;
-        for i in 0..16 {
-            let mut p = PlayerJoin::default();
-            p.position = i;
-            state.players.push(p);
-        }
-        state
-    }
-
-    #[test]
-    fn test_pack_game_state() -> anyhow::Result<()> {
-        let state = make_game_state();
-        let mut buf = [0u8; GameState::LEN];
-        GameState::pack(state, &mut buf)?;
-        println!("{:?}", buf);
-        Ok(())
-    }
-
-    #[test]
-    fn test_deser_game_state() -> anyhow::Result<()> {
-        let state = make_game_state();
-        let mut buf = [0u8; GameState::LEN];
-        GameState::pack(state.clone(), &mut buf)?;
-        let deser = GameState::unpack(&buf)?;
-        assert_eq!(deser, state);
-        Ok(())
     }
 }

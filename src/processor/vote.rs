@@ -3,15 +3,17 @@ use crate::{
     state::Vote,
     types::{VoteParams, VoteType},
 };
+use borsh::BorshDeserialize;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
     entrypoint::ProgramResult,
     program_error::ProgramError,
-    program_pack::Pack,
     pubkey::Pubkey,
     sysvar::Sysvar,
 };
+
+use super::misc::pack_state_to_account;
 
 pub fn process(
     _program_id: &Pubkey,
@@ -24,12 +26,13 @@ pub fn process(
     let voter_account = next_account_info(account_iter)?;
     let game_account = next_account_info(account_iter)?;
     let votee_account = next_account_info(account_iter)?;
+    let system_program = next_account_info(account_iter)?;
 
     if !voter_account.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let mut game_state = GameState::unpack(&game_account.try_borrow_data()?)?;
+    let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     // Validate voter identity
 
@@ -67,7 +70,7 @@ pub fn process(
         VoteType::ClientVoteTransactorDropOff => return Err(ProcessError::Unimplemented)?,
     }
 
-    GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
+    pack_state_to_account(game_state, &game_account, &voter_account, &system_program)?;
 
     Ok(())
 }

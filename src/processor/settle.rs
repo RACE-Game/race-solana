@@ -11,6 +11,7 @@ use crate::constants::MAX_SETTLE_INCREASEMENT;
 use crate::state::{RecipientSlotOwner, RecipientState};
 use crate::types::{SettleOp, SettleParams, Transfer};
 use crate::{error::ProcessError, state::GameState};
+use borsh::BorshDeserialize;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -20,7 +21,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use super::misc::{validate_receiver_account, TransferSource};
+use super::misc::{pack_state_to_account, validate_receiver_account, TransferSource};
 
 pub fn process(
     program_id: &Pubkey,
@@ -61,7 +62,7 @@ pub fn process(
     // We should check the order of settles: add < sub < ejec
     // 0 for add, 1 for sub, 2 for eject.
     let mut op_type = 0;
-    let mut game_state = GameState::unpack(&game_account.try_borrow_mut_data()?)?;
+    let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     if game_state.settle_version != settle_version {
         return Err(ProcessError::InvalidSettleVersion)?;
@@ -186,7 +187,8 @@ pub fn process(
 
     game_state.settle_version = next_settle_version;
     game_state.checkpoint = Box::new(checkpoint);
-    GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
+
+    pack_state_to_account(game_state, &game_account, &transactor_account, &system_program)?;
 
     Ok(())
 }

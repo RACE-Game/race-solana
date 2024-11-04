@@ -1,8 +1,10 @@
+use crate::processor::misc::pack_state_to_account;
 use crate::types::JoinParams;
 use crate::{
     error::ProcessError,
     state::{EntryType, GameState, PlayerJoin},
 };
+use borsh::BorshDeserialize;
 ///! Player joins a game (cash, sng or tourney)
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -40,6 +42,8 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
 
     let token_program = next_account_info(account_iter)?;
 
+    let system_program = next_account_info(account_iter)?;
+
     if !payer_account.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
@@ -50,7 +54,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
         return Err(ProgramError::AccountNotRentExempt);
     }
 
-    let mut game_state = GameState::unpack(&game_account.try_borrow_data()?)?;
+    let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     if game_state.stake_account.ne(stake_account.key) {
         return Err(ProgramError::InvalidArgument);
@@ -211,7 +215,8 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
     }
 
     msg!("Pack game state with {} players", game_state.players.len());
-    GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
+
+    pack_state_to_account(game_state, &game_account, &player_account, &system_program)?;
 
     msg!(
         "Player {} joined the game {}",

@@ -17,6 +17,7 @@ pub enum RaceInstruction {
     /// 4. `[]` The token program
     /// 5. `[]` The bundled data account
     /// 6. `[]` The recipient account
+    /// 7. `[]` The system program
     CreateGameAccount { params: CreateGameAccountParams },
 
     /// # [1] Close a new game
@@ -74,6 +75,7 @@ pub enum RaceInstruction {
     /// 0. `[signer]` The voter account, could be the wallet address of a server or a player.
     /// 1. `[writable]` The game account.
     /// 2. `[]` The votee account.
+    /// 3. `[]` The system program
     Vote { params: VoteParams },
 
     /// # [7] Serve a game
@@ -82,6 +84,7 @@ pub enum RaceInstruction {
     /// 0. `[signer]` The payer acount (the server itself)
     /// 1. `[writable]` The game account to be served
     /// 2. `[]` The server account
+    /// 3. `[]` The system program
     ServeGame{ params: ServeParams },
 
     /// # [8] Register a game to the registry
@@ -112,6 +115,7 @@ pub enum RaceInstruction {
     /// 4. `[writable]` The stake account that holds players' buyin assets
     /// 5. `[writable]` The pda account
     /// 6. `[]` The SPL token program
+    /// 7. `[]` The system program
     JoinGame { params: JoinParams },
 
     /// # [11] Publish a game
@@ -168,6 +172,7 @@ pub enum RaceInstruction {
     /// 4. `[writable]` The stake account that holds players' deposit assets
     /// 5. `[writable]` The pda account
     /// 6. `[]` The SPL token program
+    /// 7. `[]` The system program
     Deposit { params: DepositParams },
 
 }

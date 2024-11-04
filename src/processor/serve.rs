@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 ///! Server joins a game
 ///!
 ///! When a server joins an on-chain game, it can be either of the following cases:
@@ -14,8 +15,7 @@ use solana_program::{
 };
 
 use crate::{
-    error::ProcessError,
-    state::{GameState, ServerJoin, ServerState},
+    error::ProcessError, processor::misc::pack_state_to_account, state::{GameState, ServerJoin, ServerState}
 };
 use crate::{constants::MAX_SERVER_NUM, types::ServeParams};
 
@@ -34,7 +34,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
         return Err(ProcessError::InvalidAccountStatus)?;
     }
 
-    let mut game_state = GameState::unpack(&game_account.try_borrow_mut_data()?)?;
+    let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
     if !game_state.is_initialized {
         return Err(ProgramError::UninitializedAccount);
     }
@@ -47,6 +47,8 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
     if game_state.servers.len() == MAX_SERVER_NUM {
         return Err(ProcessError::ServerNumberExceedsLimit)?;
     }
+
+    let system_program = next_account_info(account_iter)?;
 
     if game_state
         .servers
@@ -78,6 +80,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
         game_account.key
     );
 
-    GameState::pack(game_state, &mut game_account.try_borrow_mut_data()?)?;
+    pack_state_to_account(game_state, &game_account, &payer_account, &system_program)?;
+
     Ok(())
 }
