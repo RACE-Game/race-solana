@@ -166,6 +166,18 @@ pub enum ProcessError {
     /// 28
     #[error("Profile account deserialization failed")]
     ProfileDeserializationFailed,
+
+    /// 29
+    #[error("Invalid payment amount")]
+    InvalidPaymentParams,
+
+    /// 2A
+    #[error("Recipient slot not found")]
+    RecipientSlotNotFound,
+
+    /// 2B
+    #[error("Invalid recipient slot account provided")]
+    InvalidRecipientSlotAccount,
 }
 
 impl From<ProcessError> for ProgramError {

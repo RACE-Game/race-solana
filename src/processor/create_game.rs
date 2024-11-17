@@ -9,8 +9,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::{processor::misc::pack_state_to_account, types::CreateGameAccountParams};
-use crate::state::{GameState, PlayerJoin};
+use crate::{processor::misc::pack_state_to_account, state::EntryLock, types::CreateGameAccountParams};
+use crate::state::GameState;
 use spl_token::{
     instruction::{set_authority, AuthorityType},
     state::Mint,
@@ -72,31 +72,27 @@ pub fn process(
 
     let game_state = GameState {
         is_initialized: true,
-        version: "0.2.2".into(),
+        version: "0.2.6".into(),
         title: params.title,
-        // TODO: invalid bundle account
         bundle_addr: *bundle_account.key,
-        // TODO: use user's stake_account from client
         stake_account: *stake_account.key,
-        // TODO: invalid owner
         owner: payer.key.clone(),
         transactor_addr: None,
         token_mint: *token_account.key,
         access_version: 0,
         settle_version: 0,
         max_players: params.max_players,
-        // TODO: check if data exceeds max len
         data_len: params.data.len() as u32,
         data: Box::new(params.data),
-        players: Box::new(Vec::<PlayerJoin>::with_capacity(
-            params.max_players as usize,
-        )),
+        players: Default::default(),
+        deposits: Default::default(),
         servers: Default::default(),
         unlock_time: None,
         votes: Default::default(),
         entry_type: params.entry_type,
         recipient_addr,
         checkpoint: Default::default(),
+        entry_lock: EntryLock::Open,
     };
 
     msg!("Created game account: {:?}", game_account.key);

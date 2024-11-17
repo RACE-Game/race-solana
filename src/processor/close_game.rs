@@ -28,13 +28,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
     // check is_initialized?
 
-    // Refuse to close if some players still have balance in game.
-    for p in game_state.players.iter() {
-        if p.balance > 0 {
-            return Err(ProcessError::CantCloseGame)?;
-        }
-    }
-
     if game_state.owner.ne(&owner_account.key) {
         return Err(ProcessError::InvalidOwner)?;
     }

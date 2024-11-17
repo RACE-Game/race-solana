@@ -3,10 +3,10 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
-use crate::state::{EntryType, RecipientSlotOwner, RecipientSlotType, RecipientSlot, RecipientSlotShare};
+use crate::state::{EntryLock, EntryType, RecipientSlot, RecipientSlotOwner, RecipientSlotShare, RecipientSlotType};
 
-#[cfg_attr(test, derive(PartialEq, Clone))]
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
 pub struct RecipientSlotShareInit {
     pub owner: RecipientSlotOwner,
     pub weights: u16,
@@ -23,7 +23,7 @@ impl From<RecipientSlotShareInit> for RecipientSlotShare {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct RecipientSlotInit {
     pub id: u8,
     pub slot_type: RecipientSlotType,
@@ -113,19 +113,10 @@ pub enum AssetChange {
     NoChange,
 }
 
-/// The data represents how a player's asset & status changed.
-#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
-pub enum SettleOp {
-    Add(u64),
-    Sub(u64),
-    Eject,
-    AssignSlot(String),
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct Settle {
-    pub position: u16,
-    pub op: SettleOp,
+    pub player_id: u64,
+    pub amount: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
@@ -141,12 +132,14 @@ pub struct SettleParams {
     pub checkpoint: Vec<u8>,
     pub settle_version: u64,
     pub next_settle_version: u64,
+    pub entry_lock: Option<EntryLock>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct JoinParams {
     pub amount: u64,
     pub access_version: u64,
+    pub settle_version: u64,
     pub position: u16,
     pub verify_key: String,
 }
@@ -181,7 +174,7 @@ pub struct PublishParams {
     pub symbol: String,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct CreateRecipientParams {
     pub slots: Vec<RecipientSlotInit>
 }

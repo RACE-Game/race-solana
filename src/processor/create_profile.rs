@@ -8,7 +8,7 @@ use solana_program::{
     sysvar::rent::Rent,
 };
 
-use crate::{error::ProcessError, state::PlayerState};
+use crate::{constants::PROFILE_ACCOUNT_LEN, error::ProcessError, state::PlayerState};
 use crate::constants::PLAYER_PROFILE_SEED;
 use crate::types::CreatePlayerProfileParams;
 
@@ -29,6 +29,8 @@ pub fn process(
 
     let pfp_account = next_account_info(account_iter)?;
 
+    let _system_program = next_account_info(account_iter)?;
+
     if !owner_account.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
@@ -37,13 +39,13 @@ pub fn process(
         return Err(ProcessError::InvalidAccountStatus)?;
     }
 
-    if profile_pubkey != *profile_account.key {
-        return Err(ProcessError::InvalidAccountPubkey)?;
+    let rent = Rent::default();
+    if profile_account.lamports() < rent.minimum_balance(PROFILE_ACCOUNT_LEN) {
+        return Err(ProgramError::AccountNotRentExempt)?;
     }
 
-    let rent = Rent::default();
-    if !rent.is_exempt(profile_account.lamports(), PlayerState::LEN) {
-        return Err(ProgramError::AccountNotRentExempt);
+    if profile_pubkey != *profile_account.key {
+        return Err(ProcessError::InvalidAccountPubkey)?;
     }
 
     let pfp_pubkey = if pfp_account.key.eq(&Pubkey::default()) {

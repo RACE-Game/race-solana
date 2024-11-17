@@ -8,8 +8,8 @@
 //! 2. Player without assets must be ejected.
 
 use crate::constants::MAX_SETTLE_INCREASEMENT;
-use crate::state::{RecipientSlotOwner, RecipientState};
-use crate::types::{SettleOp, SettleParams, Transfer};
+use crate::state::RecipientState;
+use crate::types::{SettleParams, Transfer};
 use crate::{error::ProcessError, state::GameState};
 use borsh::BorshDeserialize;
 use solana_program::{
@@ -23,6 +23,7 @@ use solana_program::{
 
 use super::misc::{pack_state_to_account, validate_receiver_account, TransferSource};
 
+#[inline(never)]
 pub fn process(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -34,6 +35,7 @@ pub fn process(
         checkpoint,
         settle_version,
         next_settle_version,
+        entry_lock,
     } = params;
 
     let account_iter = &mut accounts.iter();
@@ -59,16 +61,13 @@ pub fn process(
     // Collect the pays.
     let mut pays: Vec<(Pubkey, u64)> = Vec::new();
 
-    // We should check the order of settles: add < sub < ejec
-    // 0 for add, 1 for sub, 2 for eject.
-    let mut op_type = 0;
     let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     if game_state.settle_version != settle_version {
         return Err(ProcessError::InvalidSettleVersion)?;
     }
 
-    let mut recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
+    let recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
 
     if next_settle_version > game_state.settle_version + MAX_SETTLE_INCREASEMENT
         || next_settle_version <= game_state.settle_version
@@ -82,78 +81,19 @@ pub fn process(
         return Err(ProcessError::InvalidStakeAccount)?;
     }
 
-    // Ensure changes are sum up to zero
-    let mut sum = 0i128;
-
     for settle in settles.into_iter() {
         let player = match game_state
             .players
             .iter_mut()
-            .find(|p| p.position == settle.position)
+            .find(|p| p.access_version == settle.player_id)
         {
             Some(p) => p,
             None => return Err(ProcessError::InvalidSettlePlayerAddress)?,
         };
 
-        match settle.op {
-            SettleOp::Add(amt) => {
-                if op_type != 0 {
-                    return Err(ProcessError::InvalidOrderOfSettles)?;
-                }
-                player.balance = player
-                    .balance
-                    .checked_add(amt)
-                    .ok_or(ProcessError::PlayerBalanceOverflow)?;
-                sum = sum
-                    .checked_add(i128::from(amt))
-                    .ok_or(ProcessError::SettleValidationOverflow)?;
-            }
-            SettleOp::Sub(amt) => {
-                if op_type == 2 {
-                    return Err(ProcessError::InvalidOrderOfSettles)?;
-                }
-                player.balance = player
-                    .balance
-                    .checked_sub(amt)
-                    .ok_or(ProcessError::PlayerBalanceOverflow)?;
-                sum = sum
-                    .checked_sub(i128::from(amt))
-                    .ok_or(ProcessError::SettleValidationOverflow)?;
-                op_type = 1;
-            }
-            SettleOp::Eject => {
-                pays.push((player.addr, player.balance));
-                game_state.players.retain(|p| p.position != settle.position);
-                op_type = 2;
-            }
-            SettleOp::AssignSlot(id) => {
-                for slot in recipient_state.slots.iter_mut() {
-                    for share in slot.shares.iter_mut() {
-                        if let RecipientSlotOwner::Unassigned { ref identifier } = share.owner {
-                            if id.eq(identifier) {
-                                share.owner = RecipientSlotOwner::Assigned { addr: player.addr.clone() };
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        pays.push((player.addr, settle.amount));
+        game_state.players.retain(|p| p.access_version != settle.player_id);
     }
-
-    sum = sum
-        .checked_add(transfers.iter().map(|t| i128::from(t.amount)).sum::<i128>())
-        .ok_or(ProcessError::SettleValidationOverflow)?;
-
-    if sum != 0 {
-        return Err(ProcessError::InvalidSettleAmounts)?;
-    }
-
-    // // Ensure all players' assets are greater than zero
-    // for player in game_state.players.iter() {
-    //     if player.balance == 0 {
-    //         return Err(ProcessError::UnhandledEliminatedPlayer)?;
-    //     }
-    // }
 
     // Transfer tokens
     let transfer_source = TransferSource::try_new(
@@ -185,8 +125,12 @@ pub fn process(
         }
     }
 
+    game_state.deposits.retain(|d| d.settle_version <= game_state.settle_version);
     game_state.settle_version = next_settle_version;
     game_state.checkpoint = Box::new(checkpoint);
+    if let Some(entry_lock) = entry_lock {
+        game_state.entry_lock = entry_lock;
+    }
 
     pack_state_to_account(game_state, &game_account, &transactor_account, &system_program)?;
 

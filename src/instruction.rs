@@ -45,6 +45,7 @@ pub enum RaceInstruction {
     /// 0. `[signer]` The owner of the player profile
     /// 1. `[]` The player profile account to be created
     /// 2. `[]` The pfp account
+    /// 3. `[]` The system program
     CreatePlayerProfile { params: CreatePlayerProfileParams },
 
     /// # [4] Register (Create) a server profile
@@ -113,9 +114,11 @@ pub enum RaceInstruction {
     /// 2. `[writable]` The game account
     /// 3. `[]` The mint account.
     /// 4. `[writable]` The stake account that holds players' buyin assets
-    /// 5. `[writable]` The pda account
-    /// 6. `[]` The SPL token program
-    /// 7. `[]` The system program
+    /// 5. `[]` The recipient account
+    /// 6. `[writable]` The pda account
+    /// 7. `[]` The SPL token program
+    /// 8. `[]` The system program
+    /// (Optional)9. `[]` Other account to receive the payment. For EntryType::Ticket
     JoinGame { params: JoinParams },
 
     /// # [11] Publish a game
@@ -140,7 +143,7 @@ pub enum RaceInstruction {
     /// 2. `[]` The recipient account
     /// 3. `[]` The token program
     /// 3+n. `[]` The Nth staking account for slots
-    CreateRecipient { params: CreateRecipientParams },
+    CreateRecipient { params: Box<CreateRecipientParams> },
 
     /// # [13] Assign recipient
     ///

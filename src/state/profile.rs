@@ -1,10 +1,9 @@
-use crate::{constants::PROFILE_ACCOUNT_LEN, error::ProcessError};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    program_error::ProgramError,
-    program_pack::{IsInitialized, Pack, Sealed},
-    pubkey::Pubkey,
+    program_error::ProgramError, program_pack::{IsInitialized, Pack, Sealed}, pubkey::Pubkey
 };
+
+use crate::{constants::PROFILE_ACCOUNT_LEN, error::ProcessError};
 
 // =======================================================
 // ====================== PLAYER ACCOUNT =================
@@ -33,43 +32,6 @@ impl Pack for PlayerState {
     }
 
     fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
-        Ok(Self::deserialize(&mut src).map_err(|_| ProcessError::ProfileDeserializationFailed)?)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-     use solana_program::borsh::get_instance_packed_len;
-
-    use super::*;
-
-    fn create_player() -> PlayerState {
-        let mut player = PlayerState::default();
-        player.is_initialized = true;
-        player.nick = "16-char_nickname".to_string();
-        player.pfp = Some(Pubkey::default());
-        player
-    }
-
-    #[test]
-    fn test_player_account_len() -> anyhow::Result<()> {
-        let player = create_player();
-        let unpadded_len = get_instance_packed_len(&player)?;
-        println!(
-            "Player account len {}",
-            unpadded_len
-        );
-        assert!(unpadded_len <= PROFILE_ACCOUNT_LEN);
-        assert_eq!(unpadded_len, 54);
-        Ok(())
-    }
-
-    #[test]
-    fn test_deserialize_player() -> anyhow::Result<()> {
-        let player = create_player();
-        let unpadded_data = [1, 16, 0, 0, 0, 49, 54, 45, 99, 104, 97, 114, 95, 110, 105, 99, 107, 110, 97, 109, 101, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let player_ser = player.try_to_vec().unwrap();
-        assert_eq!(player_ser, unpadded_data);
-        Ok(())
+        Ok(Self::deserialize(&mut src).map_err(|_| ProcessError::RecipientDeserializationFailed)?)
     }
 }

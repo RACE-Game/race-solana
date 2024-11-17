@@ -6,16 +6,16 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-#[cfg_attr(test, derive(PartialEq, Clone))]
-#[derive(Default, BorshDeserialize, BorshSerialize, Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Default, BorshDeserialize, BorshSerialize, Debug, Clone)]
 pub enum RecipientSlotType {
     #[default]
     Token,
     Nft,
 }
 
-#[cfg_attr(test, derive(PartialEq, Clone))]
-#[derive(BorshDeserialize, BorshSerialize, Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(BorshDeserialize, BorshSerialize, Debug, Clone)]
 pub enum RecipientSlotOwner {
     Unassigned { identifier: String },
     Assigned { addr: Pubkey },

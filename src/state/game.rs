@@ -13,7 +13,6 @@ pub enum EntryType {
         max_deposit: u64,
     },
     Ticket {
-        slot_id: u8,
         amount: u64,
     },
     Gating {
@@ -30,11 +29,21 @@ impl Default for EntryType {
     }
 }
 
+#[derive(Default, Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
+pub enum EntryLock {
+    #[default]
+    Open,
+    JoinOnly,
+    DepositOnly,
+    Closed,
+}
+
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug)]
 pub struct PlayerJoin {
     pub addr: Pubkey,
-    pub balance: u64,
     pub position: u16,
     pub access_version: u64,
     pub verify_key: String,
@@ -47,6 +56,14 @@ pub struct ServerJoin {
     pub endpoint: String,
     pub access_version: u64,
     pub verify_key: String,
+}
+
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug)]
+pub struct PlayerDeposit {
+    pub addr: Pubkey,
+    pub amount: u64,
+    pub settle_version: u64,
 }
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
@@ -84,6 +101,8 @@ pub struct GameState {
     pub max_players: u16,
     // game players
     pub players: Box<Vec<PlayerJoin>>,
+    // deposits
+    pub deposits: Box<Vec<PlayerDeposit>>,
     // game servers (max: 10)
     pub servers: Box<Vec<ServerJoin>>,
     // length of game-specific data
@@ -100,6 +119,8 @@ pub struct GameState {
     pub recipient_addr: Pubkey,
     // the checkpoint state
     pub checkpoint: Box<Vec<u8>>,
+    // the lock for game entry
+    pub entry_lock: EntryLock,
 }
 
 impl IsInitialized for GameState {

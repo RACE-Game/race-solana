@@ -24,12 +24,18 @@ pub fn process(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
+
     let instruction = RaceInstruction::unpack(instruction_data)?;
-    msg!("Instruction: {:?}", instruction);
 
     let result = match instruction {
+
         RaceInstruction::CreateGameAccount { params } => {
+            msg!("Create a game");
             create_game::process(program_id, accounts, params)
+        }
+        RaceInstruction::JoinGame { params } => {
+            msg!("Player joins game");
+            join::process(program_id, accounts, params)
         }
         RaceInstruction::CreateRegistry { params } => {
             msg!("Create a game center for registering games");
@@ -67,17 +73,13 @@ pub fn process(
             msg!("Unregister a game");
             unregister_game::process(program_id, accounts)
         }
-        RaceInstruction::JoinGame { params } => {
-            msg!("Player joins game");
-            join::process(program_id, accounts, params)
-        }
         RaceInstruction::PublishGame { params } => {
             msg!("Publish a game as NFT");
             publish_game::process(program_id, accounts, params)
         }
         RaceInstruction::CreateRecipient { params }=> {
             msg!("Create recipient");
-            create_recipient::process(program_id, accounts, params)
+            create_recipient::process(program_id, accounts, *params)
         }
         RaceInstruction::AssignRecipient { params }=> {
             msg!("Assign recipient");

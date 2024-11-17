@@ -15,6 +15,7 @@ use solana_program::{
 
 use super::misc::pack_state_to_account;
 
+#[inline(never)]
 pub fn process(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
