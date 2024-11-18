@@ -73,6 +73,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
     let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
 
+    if game_state.settle_version != params.settle_version {
+        return Err(ProcessError::InvalidSettleVersion)?;
+    }
+
     if game_state.stake_account.ne(stake_account.key) {
         return Err(ProgramError::InvalidArgument);
     }

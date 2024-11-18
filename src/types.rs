@@ -127,9 +127,9 @@ pub struct Transfer {
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct SettleParams {
-    pub settles: Vec<Settle>,
-    pub transfers: Vec<Transfer>,
-    pub checkpoint: Vec<u8>,
+    pub settles: Box<Vec<Settle>>,
+    pub transfers: Box<Vec<Transfer>>,
+    pub checkpoint: Box<Vec<u8>>,
     pub settle_version: u64,
     pub next_settle_version: u64,
     pub entry_lock: Option<EntryLock>,
@@ -176,7 +176,7 @@ pub struct PublishParams {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct CreateRecipientParams {
-    pub slots: Vec<RecipientSlotInit>
+    pub slots: Box<Vec<RecipientSlotInit>>
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]

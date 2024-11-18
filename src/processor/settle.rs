@@ -112,7 +112,7 @@ pub fn process(
     }
 
     // Handle commission transfers
-    for Transfer { slot_id, amount } in transfers {
+    for Transfer { slot_id, amount } in *transfers {
         let slot_stake_account = next_account_info(account_iter)?;
         if let Some(slot) = recipient_state.slots.iter().find(|s| s.id == slot_id) {
             if slot_stake_account.key.eq(&slot.stake_addr) {
@@ -125,9 +125,9 @@ pub fn process(
         }
     }
 
-    game_state.deposits.retain(|d| d.settle_version <= game_state.settle_version);
+    game_state.deposits.retain(|d| d.settle_version >= game_state.settle_version);
     game_state.settle_version = next_settle_version;
-    game_state.checkpoint = Box::new(checkpoint);
+    game_state.checkpoint = checkpoint;
     if let Some(entry_lock) = entry_lock {
         game_state.entry_lock = entry_lock;
     }

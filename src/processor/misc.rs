@@ -20,6 +20,7 @@ pub fn is_native_mint(mint: &Pubkey) -> bool {
     mint.eq(&Pubkey::from_str(NATIVE_MINT).unwrap())
 }
 
+#[inline(never)]
 pub fn validate_receiver_account(
     account: &Pubkey,
     mint: &Pubkey,
@@ -206,6 +207,7 @@ impl<'a> TransferSource<'a> {
     }
 }
 
+#[inline(never)]
 pub fn pack_state_to_account<'a, T: BorshSerialize>(state: T, account: &AccountInfo<'a>, payer: &AccountInfo<'a>, system_program: &AccountInfo<'a>) -> ProgramResult {
     let new_data = borsh::to_vec(&state)?;
     let new_data_len = new_data.len();
