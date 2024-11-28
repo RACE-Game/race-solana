@@ -24,7 +24,7 @@ use spl_token::{
 };
 
 #[inline(never)]
-pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams) -> ProgramResult {
+pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams) -> ProgramResult {
 
     let account_iter = &mut accounts.into_iter();
 
@@ -42,7 +42,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
 
     let recipient_account = next_account_info(account_iter)?;
 
-    let pda_account = next_account_info(account_iter)?;
+    let _pda_account = next_account_info(account_iter)?;
 
     let token_program = next_account_info(account_iter)?;
 
@@ -78,7 +78,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
     }
 
     if game_state.stake_account.ne(stake_account.key) {
-        return Err(ProgramError::InvalidArgument);
+        return Err(ProcessError::InvalidStakeAccount)?;
     }
 
     if game_state.token_mint.ne(mint_account.key) {
@@ -126,12 +126,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
     // Increase game access version
     game_state.access_version += 1;
 
-    // Transfer player deposit to game stake account
-    let temp_state = Account::unpack(&temp_account.try_borrow_data()?)?;
-
-    let is_native_token = game_state.token_mint.ne(&native_mint::id());
-
-    let account_to_receive_payment;
+    let is_native_token = game_state.token_mint.eq(&native_mint::id());
 
     match &game_state.entry_type {
         EntryType::Cash {
@@ -159,22 +154,19 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
         _ => { unimplemented!() }
     }
 
-    if is_native_token {
-        account_to_receive_payment = stake_account;
-    } else {
-        account_to_receive_payment = pda_account;
-    }
+    if !is_native_token {
+        // For SPL tokens, use token program to transfer tokens
+        let temp_state = Account::unpack(&temp_account.try_borrow_data()?)?;
 
-    msg!("Handle payment, the account to receive payment is {}", account_to_receive_payment.key.to_string());
-    if is_native_token {
         if temp_state.amount != params.amount {
+            msg!("Required amount: {}, actual amount: {}", params.amount, temp_state.amount);
             return Err(ProcessError::InvalidDeposit)?;
         }
 
         let transfer_ix = transfer(
             token_program.key,
             temp_account.key,
-            account_to_receive_payment.key,
+            stake_account.key,
             payer_account.key,
             &[&payer_account.key],
             params.amount as u64,
@@ -184,7 +176,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
             &transfer_ix,
             &[
                 temp_account.clone(),
-                account_to_receive_payment.clone(),
+                stake_account.clone(),
                 payer_account.clone(),
                 token_program.clone(),
             ],
@@ -208,34 +200,15 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams
             ],
         )?;
     } else {
-        // For native mint, just close the account
-        let (pda, _bump_seed) =
-            Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
-
-        if account_to_receive_payment.key.ne(&pda) {
-            return Err(ProcessError::InvalidPDA)?;
-        }
-
+        // For native mint, just close the account, transfer its lamports to stake account
         if temp_account.lamports() != params.amount {
+            msg!("Invalid deposit, required: {}, actual: {}", params.amount, temp_account.lamports());
             return Err(ProcessError::InvalidDeposit)?;
         }
 
-        let close_temp_account_ix = close_account(
-            token_program.key,
-            temp_account.key,
-            account_to_receive_payment.key,
-            payer_account.key,
-            &[&payer_account.key],
-        )?;
+        **(stake_account.try_borrow_mut_lamports()?) += temp_account.lamports();
+        **(temp_account.try_borrow_mut_lamports()?) = 0;
 
-        invoke(
-            &close_temp_account_ix,
-            &[
-                temp_account.clone(),
-                account_to_receive_payment.clone(),
-                payer_account.clone(),
-            ],
-        )?;
     }
 
     msg!("Add player and its deposit to game state");

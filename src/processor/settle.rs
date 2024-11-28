@@ -7,7 +7,6 @@
 //! 1. All changes are sum up to zero.
 //! 2. Player without assets must be ejected.
 
-use crate::constants::MAX_SETTLE_INCREASEMENT;
 use crate::state::RecipientState;
 use crate::types::{SettleParams, Transfer};
 use crate::{error::ProcessError, state::GameState};
@@ -21,7 +20,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use super::misc::{pack_state_to_account, validate_receiver_account, TransferSource};
+use super::misc::{general_transfer, pack_state_to_account, validate_receiver};
 
 #[inline(never)]
 pub fn process(
@@ -36,6 +35,7 @@ pub fn process(
         settle_version,
         next_settle_version,
         entry_lock,
+        reset,
     } = params;
 
     let account_iter = &mut accounts.iter();
@@ -69,9 +69,7 @@ pub fn process(
 
     let recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
 
-    if next_settle_version > game_state.settle_version + MAX_SETTLE_INCREASEMENT
-        || next_settle_version <= game_state.settle_version
-    {
+    if next_settle_version <= game_state.settle_version {
         return Err(ProcessError::InvalidNextSettleVersion)?;
     }
 
@@ -92,23 +90,26 @@ pub fn process(
         };
 
         pays.push((player.addr, settle.amount));
-        game_state.players.retain(|p| p.access_version != settle.player_id);
+        if settle.eject {
+            game_state
+                .players
+                .retain(|p| p.access_version != settle.player_id);
+        }
     }
 
-    // Transfer tokens
-    let transfer_source = TransferSource::try_new(
-        system_program.clone(),
-        token_program.clone(),
-        stake_account.clone(),
-        game_account.key.as_ref(),
-        pda_account.clone(),
-        program_id,
-    )?;
-
     for (addr, amount) in pays.into_iter() {
-        let receiver_ata = next_account_info(account_iter)?;
-        validate_receiver_account(&addr, &game_state.token_mint, receiver_ata.key)?;
-        transfer_source.transfer(receiver_ata, amount)?;
+        let receiver = next_account_info(account_iter)?;
+        validate_receiver(&addr, &game_state.token_mint, &receiver.key)?;
+        general_transfer(
+            stake_account,
+            &receiver,
+            &game_state.token_mint,
+            amount,
+            pda_account,
+            &game_account.key.as_ref(),
+            token_program,
+            program_id,
+        )?;
     }
 
     // Handle commission transfers
@@ -116,7 +117,16 @@ pub fn process(
         let slot_stake_account = next_account_info(account_iter)?;
         if let Some(slot) = recipient_state.slots.iter().find(|s| s.id == slot_id) {
             if slot_stake_account.key.eq(&slot.stake_addr) {
-                transfer_source.transfer(slot_stake_account, amount)?;
+                general_transfer(
+                    stake_account,
+                    &slot_stake_account,
+                    &game_state.token_mint,
+                    amount,
+                    pda_account,
+                    &game_account.key.to_bytes(),
+                    token_program,
+                    program_id,
+                )?;
             } else {
                 return Err(ProcessError::InvalidSlotStakeAccount)?;
             }
@@ -125,14 +135,26 @@ pub fn process(
         }
     }
 
-    game_state.deposits.retain(|d| d.settle_version >= game_state.settle_version);
+    game_state
+        .deposits
+        .retain(|d| d.settle_version >= game_state.settle_version);
     game_state.settle_version = next_settle_version;
     game_state.checkpoint = checkpoint;
     if let Some(entry_lock) = entry_lock {
         game_state.entry_lock = entry_lock;
     }
 
-    pack_state_to_account(game_state, &game_account, &transactor_account, &system_program)?;
+    if reset {
+        game_state.players.clear();
+        game_state.deposits.clear();
+    }
+
+    pack_state_to_account(
+        game_state,
+        &game_account,
+        &transactor_account,
+        &system_program,
+    )?;
 
     Ok(())
 }

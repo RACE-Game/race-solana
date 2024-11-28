@@ -57,7 +57,7 @@ pub enum ProcessError {
 
     /// D
     #[error("Invalid receiver address, wallet and ATA mismatch")]
-    InvalidRecevierAddress,
+    InvalidReceiverAddress,
 
     /// E
     #[error("Settles are not in correct order")]
@@ -178,6 +178,10 @@ pub enum ProcessError {
     /// 2B
     #[error("Invalid recipient slot account provided")]
     InvalidRecipientSlotAccount,
+
+    /// 2C
+    #[error("Invalid token mint")]
+    InvalidTokenMint,
 }
 
 impl From<ProcessError> for ProgramError {

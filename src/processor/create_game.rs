@@ -9,11 +9,16 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::{processor::misc::pack_state_to_account, state::EntryLock, types::CreateGameAccountParams};
 use crate::state::GameState;
+use crate::{
+    error::ProcessError,
+    processor::misc::{is_native_mint, pack_state_to_account},
+    state::EntryLock,
+    types::CreateGameAccountParams,
+};
 use spl_token::{
     instruction::{set_authority, AuthorityType},
-    state::Mint,
+    state::{Account, Mint},
 };
 
 #[inline(never)]
@@ -48,27 +53,44 @@ pub fn process(
     }
     let recipient_addr = recipient_account.key.to_owned();
 
-    let token_state = Mint::unpack_unchecked(&token_account.data.borrow())?;
+    if is_native_mint(&token_account.key) {
+        // For SOL, use PDA as stake account.
+        let (pda, _bump_seed) =
+            Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
 
-    if !token_state.is_initialized {
-        return Err(ProgramError::UninitializedAccount);
+        if pda.ne(&stake_account.key) {
+            msg!("For game account with native token, the stake account must be a PDA.");
+            return Err(ProcessError::InvalidStakeAccount)?;
+        }
+    } else {
+        // For SPL, use dedicated stake account.
+        let token_state = Mint::unpack_unchecked(&token_account.data.borrow())?;
+        if !token_state.is_initialized {
+            return Err(ProcessError::InvalidTokenMint)?;
+        }
+
+        let stake_state = Account::unpack(&stake_account.data.borrow())?;
+        if stake_state.mint.ne(&token_account.key) {
+            return Err(ProcessError::InvalidStakeAccount)?;
+        }
+
+        let (pda, _bump_seed) =
+            Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
+
+        let set_authority_ix = set_authority(
+            token_program.key,
+            stake_account.key,
+            Some(&pda),
+            AuthorityType::AccountOwner,
+            payer.key,
+            &[&payer.key],
+        )?;
+
+        invoke(
+            &set_authority_ix,
+            &[stake_account.clone(), payer.clone(), token_program.clone()],
+        )?;
     }
-
-    let (pda, _bump_seed) = Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
-
-    let set_authority_ix = set_authority(
-        token_program.key,
-        stake_account.key,
-        Some(&pda),
-        AuthorityType::AccountOwner,
-        payer.key,
-        &[&payer.key],
-    )?;
-
-    invoke(
-        &set_authority_ix,
-        &[stake_account.clone(), payer.clone(), token_program.clone()],
-    )?;
 
     let game_state = GameState {
         is_initialized: true,

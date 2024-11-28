@@ -3,14 +3,19 @@ use std::str::FromStr;
 
 use borsh::BorshSerialize;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, program::{invoke, invoke_signed}, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent, system_instruction, sysvar::Sysvar
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    msg,
+    program::{invoke, invoke_signed},
+    program_pack::Pack,
+    pubkey::Pubkey,
+    rent::Rent,
+    system_instruction,
+    sysvar::Sysvar,
 };
 
 use spl_associated_token_account::get_associated_token_address;
-use spl_token::{
-    instruction::{close_account, transfer},
-    state::Account,
-};
+use spl_token::{instruction::transfer, state::Account};
 
 use crate::error::ProcessError;
 
@@ -20,195 +25,124 @@ pub fn is_native_mint(mint: &Pubkey) -> bool {
     mint.eq(&Pubkey::from_str(NATIVE_MINT).unwrap())
 }
 
+/// Validate if the receiver is owned by account.
+/// For SPL token, the receiver must be an ATA of account for mint.
+/// For SOL, the receiver must be account.
 #[inline(never)]
-pub fn validate_receiver_account(
-    account: &Pubkey,
+pub fn validate_receiver(
+    account_key: &Pubkey,
     mint: &Pubkey,
-    receiver: &Pubkey,
+    receiver_key: &Pubkey,
 ) -> ProgramResult {
     if is_native_mint(mint) {
-        if receiver.ne(account) {
+        if receiver_key.ne(&account_key) {
             msg!(
                 "Invalid receiver, expected: {:?}, actual: {:?}",
-                account,
-                receiver
+                account_key,
+                receiver_key
             );
-            return Err(ProcessError::InvalidRecevierAddress)?;
         }
     } else {
-        let ata = get_associated_token_address(account, mint);
-        if receiver.ne(&ata) {
+        let ata = get_associated_token_address(account_key, mint);
+        if receiver_key.ne(&ata) {
             msg!(
                 "Invalid receiver, expected: {:?}, actual: {:?}",
                 ata,
-                receiver
+                receiver_key
             );
-            return Err(ProcessError::InvalidRecevierAddress)?;
+            return Err(ProcessError::InvalidReceiverAddress)?;
         }
     }
     Ok(())
 }
 
-pub struct TempSource<'a> {
-    token_program: AccountInfo<'a>,
-    temp_account: AccountInfo<'a>,
-    provider_account: AccountInfo<'a>,
-}
-
-impl<'a> TempSource<'a> {
-    pub fn new(
-        provider_account: AccountInfo<'a>,
-        temp_account: AccountInfo<'a>,
-        token_program: AccountInfo<'a>,
-    ) -> Self {
-        Self {
-            provider_account,
-            temp_account,
-            token_program,
-        }
-    }
-
-    pub fn transfer(&self, dest: &AccountInfo<'a>, amount: u64) -> ProgramResult {
-        let transfer_ix = transfer(
-            self.token_program.key,
-            self.temp_account.key,
-            dest.key,
-            self.provider_account.key,
-            &[&self.provider_account.key],
+#[inline(never)]
+pub fn transfer_spl<'a>(
+    source_account: AccountInfo<'a>,
+    dest_account: AccountInfo<'a>,
+    pda: AccountInfo<'a>,
+    token_program: &AccountInfo<'a>,
+    amount: u64,
+    pda_seed: &[u8],
+    bump_seed: u8,
+) -> ProgramResult {
+    if Account::unpack(&dest_account.try_borrow_data()?).is_ok() {
+        let ix = transfer(
+            token_program.key,
+            source_account.key,
+            dest_account.key,
+            &pda.key,
+            &[pda.key],
             amount,
         )?;
-        invoke(
-            &transfer_ix,
-            &[
-                self.temp_account.clone(),
-                dest.clone(),
-                self.provider_account.clone(),
-                self.token_program.clone(),
-            ],
-        )?;
-        Ok(())
-    }
-    pub fn close(&self) -> ProgramResult {
-        let close_ticket_asset_account_ix = close_account(
-            self.token_program.key,
-            self.temp_account.key,
-            self.provider_account.key,
-            self.provider_account.key,
-            &[&self.provider_account.key],
-        )?;
-
-        invoke(
-            &close_ticket_asset_account_ix,
-            &[
-                self.temp_account.clone(),
-                self.provider_account.clone(),
-                self.provider_account.clone(),
-            ],
-        )?;
-
-        Ok(())
-    }
-}
-
-/// Wrap a token account into a transfer source for easy token
-/// transfer.  Support both WSOL and other SPL tokens.
-pub struct TransferSource<'a> {
-    pub system_program: AccountInfo<'a>,
-    pub token_program: AccountInfo<'a>,
-    pub source_account: AccountInfo<'a>,
-    pub program_id: Pubkey,
-    pub pda_seed: &'a [u8],
-    pub pda_account: AccountInfo<'a>,
-    pub bump_seed: u8,
-    pub is_native_mint: bool,
-}
-
-impl<'a> TransferSource<'a> {
-    #[inline(never)]
-    pub fn try_new(
-        system_program: AccountInfo<'a>,
-        token_program: AccountInfo<'a>,
-        source_account: AccountInfo<'a>,
-        pda_seed: &'a [u8],
-        pda_account: AccountInfo<'a>,
-        program_id: &Pubkey,
-    ) -> Result<Self, ProgramError> {
-        let source_state = Account::unpack(&source_account.try_borrow_data()?)?;
-        let (pda_pubkey, bump_seed) = Pubkey::find_program_address(&[pda_seed], program_id);
-        if pda_account.key.ne(&pda_pubkey) {
-            return Err(ProcessError::InvalidPDA)?;
-        }
-        Ok(Self {
-            system_program,
-            token_program,
-            source_account,
-            pda_seed,
-            program_id: program_id.clone(),
-            pda_account,
-            bump_seed,
-            is_native_mint: is_native_mint(&source_state.mint),
-        })
-    }
-
-    #[inline(never)]
-    pub fn transfer(&self, dest: &AccountInfo<'a>, amount: u64) -> ProgramResult {
-        if self.is_native_mint {
-            self.transfer_sol(dest, amount)?;
-        } else {
-            self.transfer_token(dest, amount)?;
-        }
-        Ok(())
-    }
-
-    /// Transfer SOL tokens from src(WSOL token account) to dest(wallet account).
-    #[inline(never)]
-    fn transfer_sol(&self, dest: &AccountInfo<'a>, amount: u64) -> ProgramResult {
-        let ix =
-            solana_program::system_instruction::transfer(self.pda_account.key, dest.key, amount);
 
         invoke_signed(
             &ix,
-            &[self.pda_account.clone(), dest.clone()],
-            &[&[self.pda_seed, &[self.bump_seed]]],
+            &[source_account.clone(), dest_account.clone(), pda.clone()],
+            &[&[pda_seed, &[bump_seed]]],
         )?;
-
-        Ok(())
+    } else {
+        msg!("Receiver account {:?} not available", dest_account.key);
     }
 
-    /// Transfer SPL tokens from src(token account) to dest(token account).
-    #[inline(never)]
-    fn transfer_token(&self, dest: &AccountInfo<'a>, amount: u64) -> ProgramResult {
-        msg!("Send {:?} SPL to {:?}", amount, dest.key);
-
-        if Account::unpack(&dest.try_borrow_data()?).is_ok() {
-            let ix = transfer(
-                self.token_program.key,
-                self.source_account.key,
-                dest.key,
-                &self.pda_account.key,
-                &[&self.pda_account.key],
-                amount,
-            )?;
-
-            invoke_signed(
-                &ix,
-                &[
-                    self.source_account.clone(),
-                    dest.clone(),
-                    self.pda_account.clone(),
-                ],
-                &[&[self.pda_seed, &[self.bump_seed]]],
-            )?;
-        } else {
-            msg!("Receiver account {:?} not available", dest.key);
-        }
-
-        Ok(())
-    }
+    Ok(())
 }
 
 #[inline(never)]
-pub fn pack_state_to_account<'a, T: BorshSerialize>(state: T, account: &AccountInfo<'a>, payer: &AccountInfo<'a>, system_program: &AccountInfo<'a>) -> ProgramResult {
+pub fn transfer_sol<'a>(
+    source_account: AccountInfo<'a>,
+    dest_account: AccountInfo<'a>,
+    amount: u64,
+    pda_seed: &[u8],
+    bump_seed: u8,
+) -> ProgramResult {
+    let ix =
+        solana_program::system_instruction::transfer(source_account.key, dest_account.key, amount);
+
+    invoke_signed(
+        &ix,
+        &[source_account.clone(), dest_account.clone()],
+        &[&[pda_seed, &[bump_seed]]],
+    )?;
+
+    Ok(())
+}
+
+#[inline(never)]
+pub fn general_transfer<'a>(
+    source_account: &AccountInfo<'a>,
+    dest_account: &AccountInfo<'a>,
+    mint: &Pubkey,
+    amount: u64,
+    pda: &AccountInfo<'a>,
+    pda_seed: &[u8],
+    token_program: &AccountInfo<'a>,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    let (_, bump_seed) = Pubkey::find_program_address(&[pda_seed], program_id);
+    if is_native_mint(mint) {
+        transfer_sol(source_account.to_owned(), dest_account.to_owned(), amount, pda_seed, bump_seed)?;
+    } else {
+        transfer_spl(
+            source_account.to_owned(),
+            dest_account.to_owned(),
+            pda.to_owned(),
+            token_program,
+            amount,
+            pda_seed,
+            bump_seed,
+        )?;
+    }
+    Ok(())
+}
+
+#[inline(never)]
+pub fn pack_state_to_account<'a, T: BorshSerialize>(
+    state: T,
+    account: &AccountInfo<'a>,
+    payer: &AccountInfo<'a>,
+    system_program: &AccountInfo<'a>,
+) -> ProgramResult {
     let new_data = borsh::to_vec(&state)?;
     let new_data_len = new_data.len();
     let old_data_len = account.data_len();
@@ -217,26 +151,29 @@ pub fn pack_state_to_account<'a, T: BorshSerialize>(state: T, account: &AccountI
     msg!("New data len: {}", new_data_len);
 
     if new_data_len != account.data_len() {
-        msg!("Realloc account data, old size: {}, new size: {}", account.data_len(), new_data_len);
+        msg!(
+            "Realloc account data, old size: {}, new size: {}",
+            account.data_len(),
+            new_data_len
+        );
         account.realloc(new_data_len, false)?;
 
         // When the new data is bigger than the old data, we do realloc.
         // And check if more lamports are required for rent-exempt.
         if new_data_len > old_data_len {
-
             let rent = Rent::get()?;
             let new_minimum_balance = rent.minimum_balance(new_data_len);
             let lamports_diff = new_minimum_balance.saturating_sub(account.lamports());
 
-            msg!("Transfer {} lamports to make account rent-exempt({}).", lamports_diff, new_minimum_balance);
+            msg!(
+                "Transfer {} lamports to make account rent-exempt({}).",
+                lamports_diff,
+                new_minimum_balance
+            );
             if lamports_diff > 0 {
                 invoke(
                     &system_instruction::transfer(payer.key, account.key, lamports_diff),
-                    &[
-                        payer.clone(),
-                        account.clone(),
-                        system_program.clone(),
-                    ],
+                    &[payer.clone(), account.clone(), system_program.clone()],
                 )?;
             }
         }

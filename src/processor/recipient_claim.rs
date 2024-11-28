@@ -8,9 +8,12 @@ use solana_program::{
 };
 use spl_token::state::Account;
 
-use crate::state::{RecipientSlot, RecipientSlotOwner, RecipientState};
+use crate::{
+    processor::misc::general_transfer,
+    state::{RecipientSlot, RecipientSlotOwner, RecipientState},
+};
 
-use super::misc::{validate_receiver_account, TransferSource};
+use super::misc::validate_receiver;
 
 fn claim_from_slot(stake_amount: u64, slot: &mut RecipientSlot, owner: &Pubkey) -> u64 {
     let total_weights: u16 = slot.shares.iter().map(|s| s.weights).sum();
@@ -38,7 +41,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let recipient_account = next_account_info(accounts_iter)?;
     let pda_account = next_account_info(accounts_iter)?;
     let token_program = next_account_info(accounts_iter)?;
-    let system_program = next_account_info(accounts_iter)?;
+    let _system_program = next_account_info(accounts_iter)?;
     let mut recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
 
     if !payer.is_signer {
@@ -48,7 +51,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     for slot in recipient_state.slots.iter_mut() {
         // The slot stake account
         let slot_stake_account = next_account_info(accounts_iter)?;
-        let receiver_ata = next_account_info(accounts_iter)?;
+        let receiver = next_account_info(accounts_iter)?;
 
         if slot_stake_account.key.ne(&slot.stake_addr) {
             return Err(ProgramError::InvalidAccountData);
@@ -58,22 +61,24 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        validate_receiver(payer.key, &slot_stake_state.mint, receiver.key)?;
+
         // The total amount for both claimed and unclaimed
         let total_claim = claim_from_slot(slot_stake_state.amount, slot, payer.key);
 
         if total_claim > 0 {
-            let transfer_source = TransferSource::try_new(
-                system_program.clone(),
-                token_program.clone(),
-                slot_stake_account.clone(),
+            msg!("Pay {} to {}", total_claim, receiver.key);
+
+            general_transfer(
+                slot_stake_account,
+                receiver,
+                &slot_stake_state.mint,
+                total_claim,
+                pda_account,
                 recipient_account.key.as_ref(),
-                pda_account.clone(),
+                token_program,
                 program_id,
             )?;
-
-            msg!("Pay {} to {}", total_claim, receiver_ata.key);
-            validate_receiver_account(&payer.key, &slot.token_addr, receiver_ata.key)?;
-            transfer_source.transfer(receiver_ata, total_claim)?;
         }
     }
 

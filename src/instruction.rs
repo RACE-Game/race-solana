@@ -177,7 +177,6 @@ pub enum RaceInstruction {
     /// 6. `[]` The SPL token program
     /// 7. `[]` The system program
     Deposit { params: DepositParams },
-
 }
 
 impl RaceInstruction {
