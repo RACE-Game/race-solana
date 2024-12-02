@@ -2,14 +2,19 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
+    program::invoke,
     program_error::ProgramError,
     program_pack::Pack,
-    pubkey::Pubkey, program::invoke,
+    pubkey::Pubkey,
 };
-use spl_token::{state::Account, instruction::{AuthorityType, set_authority}};
+use spl_token::{
+    instruction::{set_authority, AuthorityType},
+    state::Account,
+};
 
 use crate::{
-    constants::RECIPIENT_ACCOUNT_LEN, state::RecipientState, types::CreateRecipientParams, error::ProcessError,
+    constants::RECIPIENT_ACCOUNT_LEN, error::ProcessError, processor::misc::is_native_mint,
+    state::RecipientState, types::CreateRecipientParams,
 };
 
 #[inline(never)]
@@ -30,8 +35,6 @@ pub fn process(
 
     let CreateRecipientParams { slots } = params;
 
-    let (pda, _bump_seed) = Pubkey::find_program_address(&[recipient_account.key.as_ref()], program_id);
-
     if slots.is_empty() {
         return Err(ProcessError::EmptyRecipientSlots)?;
     }
@@ -39,27 +42,41 @@ pub fn process(
     for slot in slots.iter() {
         let slot_stake_account = next_account_info(accounts_iter)?;
         if slot.stake_addr.ne(slot_stake_account.key) {
-            return Err(ProgramError::InvalidArgument);
-        }
-        let stake_account_state = Account::unpack(&slot_stake_account.try_borrow_data()?)?;
-        if stake_account_state.mint.ne(&slot.token_addr) {
-            return Err(ProgramError::InvalidArgument);
+            return Err(ProcessError::InvalidSlotStakeAccount)?;
         }
 
-        // Transfer the authority to PDA account
-        let set_authority_ix = set_authority(
-            token_program.key,
-            slot_stake_account.key,
-            Some(&pda),
-            AuthorityType::AccountOwner,
-            payer.key,
-            &[&payer.key],
-        )?;
+        let (pda, _bump_seed) =
+            Pubkey::find_program_address(&[recipient_account.key.as_ref(), &[slot.id]], program_id);
 
-        invoke(
-            &set_authority_ix,
-            &[slot_stake_account.clone(), payer.clone(), token_program.clone()],
-        )?;
+        if is_native_mint(&slot.token_addr) {
+            if slot_stake_account.key.ne(&pda) {
+                msg!("For SOL slot, must use PDA as stake account");
+                return Err(ProcessError::InvalidSlotStakeAccount)?;
+            }
+        } else {
+            let stake_account_state = Account::unpack(&slot_stake_account.try_borrow_data()?)?;
+            if stake_account_state.mint.ne(&slot.token_addr) {
+                return Err(ProgramError::InvalidArgument);
+            }
+            // Transfer the authority to PDA account
+            let set_authority_ix = set_authority(
+                token_program.key,
+                slot_stake_account.key,
+                Some(&pda),
+                AuthorityType::AccountOwner,
+                payer.key,
+                &[&payer.key],
+            )?;
+
+            invoke(
+                &set_authority_ix,
+                &[
+                    slot_stake_account.clone(),
+                    payer.clone(),
+                    token_program.clone(),
+                ],
+            )?;
+        }
     }
 
     let slots = slots.into_iter().map(Into::into).collect();

@@ -9,8 +9,11 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::{error::ProcessError, state::GameState};
-use spl_token::{instruction::{close_account, transfer}, state::Account};
+use crate::{error::ProcessError, processor::misc::is_native_mint, state::GameState};
+use spl_token::{
+    instruction::{close_account, transfer},
+    state::Account,
+};
 
 #[inline(never)]
 pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
@@ -41,47 +44,52 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // We transfer the remaining balance to the owner
-    let token_state = Account::unpack(&stake_account.try_borrow_data()?)?;
-    if token_state.amount > 0 {
+    if is_native_mint(&game_state.token_mint) {
+        **(owner_account.try_borrow_mut_lamports()?) += stake_account.lamports();
+        **(stake_account.try_borrow_mut_lamports()?) = 0;
+    } else {
+        let token_state = Account::unpack(&stake_account.try_borrow_data()?)?;
+        if token_state.amount > 0 {
+            let transfer_ix = transfer(
+                token_program.key,
+                stake_account.key,
+                ata_account.key,
+                pda_account.key,
+                &[&pda_account.key],
+                token_state.amount,
+            )?;
 
-        let transfer_ix = transfer(
+            invoke_signed(
+                &transfer_ix,
+                &[
+                    stake_account.clone(),
+                    ata_account.clone(),
+                    pda_account.clone(),
+                ],
+                &[&[game_account.key.as_ref(), &[bump_seed]]],
+            )?;
+        }
+
+        let close_ix = close_account(
             token_program.key,
             stake_account.key,
-            ata_account.key,
+            owner_account.key,
             pda_account.key,
-            &[&pda_account.key],
-            token_state.amount
+            &[pda_account.key],
         )?;
 
         invoke_signed(
-            &transfer_ix,
+            &close_ix,
             &[
                 stake_account.clone(),
-                ata_account.clone(),
+                owner_account.clone(),
                 pda_account.clone(),
             ],
-            &[&[game_account.key.as_ref(), &[bump_seed]]]
+            &[&[game_account.key.as_ref(), &[bump_seed]]],
         )?;
     }
 
-    let close_ix = close_account(
-        token_program.key,
-        stake_account.key,
-        owner_account.key,
-        pda_account.key,
-        &[pda_account.key],
-    )?;
-
-    invoke_signed(
-        &close_ix,
-        &[
-            stake_account.clone(),
-            owner_account.clone(),
-            pda_account.clone(),
-        ],
-        &[&[game_account.key.as_ref(), &[bump_seed]]],
-    )?;
-
+    // Close game account and transfer the SOL to the owner
     **owner_account.lamports.borrow_mut() = owner_account
         .lamports()
         .checked_add(game_account.lamports())

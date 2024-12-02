@@ -70,6 +70,7 @@ pub fn process(
     let recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
 
     if next_settle_version <= game_state.settle_version {
+        msg!("Invalid next_settle = {}");
         return Err(ProcessError::InvalidNextSettleVersion)?;
     }
 
@@ -97,6 +98,8 @@ pub fn process(
         }
     }
 
+    let (_, bump_seed) = Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
+
     for (addr, amount) in pays.into_iter() {
         let receiver = next_account_info(account_iter)?;
         validate_receiver(&addr, &game_state.token_mint, &receiver.key)?;
@@ -106,9 +109,8 @@ pub fn process(
             &game_state.token_mint,
             amount,
             pda_account,
-            &game_account.key.as_ref(),
+            &[&[game_account.key.as_ref(), &[bump_seed]]],
             token_program,
-            program_id,
         )?;
     }
 
@@ -123,9 +125,8 @@ pub fn process(
                     &game_state.token_mint,
                     amount,
                     pda_account,
-                    &game_account.key.to_bytes(),
+                    &[&[game_account.key.as_ref(), &[bump_seed]]],
                     token_program,
-                    program_id,
                 )?;
             } else {
                 return Err(ProcessError::InvalidSlotStakeAccount)?;

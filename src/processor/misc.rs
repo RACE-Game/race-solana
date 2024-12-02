@@ -63,8 +63,7 @@ pub fn transfer_spl<'a>(
     pda: AccountInfo<'a>,
     token_program: &AccountInfo<'a>,
     amount: u64,
-    pda_seed: &[u8],
-    bump_seed: u8,
+    signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     if Account::unpack(&dest_account.try_borrow_data()?).is_ok() {
         let ix = transfer(
@@ -79,7 +78,7 @@ pub fn transfer_spl<'a>(
         invoke_signed(
             &ix,
             &[source_account.clone(), dest_account.clone(), pda.clone()],
-            &[&[pda_seed, &[bump_seed]]],
+            signer_seeds,
         )?;
     } else {
         msg!("Receiver account {:?} not available", dest_account.key);
@@ -93,8 +92,7 @@ pub fn transfer_sol<'a>(
     source_account: AccountInfo<'a>,
     dest_account: AccountInfo<'a>,
     amount: u64,
-    pda_seed: &[u8],
-    bump_seed: u8,
+    signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let ix =
         solana_program::system_instruction::transfer(source_account.key, dest_account.key, amount);
@@ -102,7 +100,7 @@ pub fn transfer_sol<'a>(
     invoke_signed(
         &ix,
         &[source_account.clone(), dest_account.clone()],
-        &[&[pda_seed, &[bump_seed]]],
+        signer_seeds,
     )?;
 
     Ok(())
@@ -115,13 +113,11 @@ pub fn general_transfer<'a>(
     mint: &Pubkey,
     amount: u64,
     pda: &AccountInfo<'a>,
-    pda_seed: &[u8],
+    signer_seeds: &[&[&[u8]]],
     token_program: &AccountInfo<'a>,
-    program_id: &Pubkey,
 ) -> ProgramResult {
-    let (_, bump_seed) = Pubkey::find_program_address(&[pda_seed], program_id);
     if is_native_mint(mint) {
-        transfer_sol(source_account.to_owned(), dest_account.to_owned(), amount, pda_seed, bump_seed)?;
+        transfer_sol(source_account.to_owned(), dest_account.to_owned(), amount, signer_seeds)?;
     } else {
         transfer_spl(
             source_account.to_owned(),
@@ -129,8 +125,7 @@ pub fn general_transfer<'a>(
             pda.to_owned(),
             token_program,
             amount,
-            pda_seed,
-            bump_seed,
+            signer_seeds,
         )?;
     }
     Ok(())

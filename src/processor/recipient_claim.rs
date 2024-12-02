@@ -13,7 +13,7 @@ use crate::{
     state::{RecipientSlot, RecipientSlotOwner, RecipientState},
 };
 
-use super::misc::validate_receiver;
+use super::misc::{is_native_mint, validate_receiver};
 
 fn claim_from_slot(stake_amount: u64, slot: &mut RecipientSlot, owner: &Pubkey) -> u64 {
     let total_weights: u16 = slot.shares.iter().map(|s| s.weights).sum();
@@ -53,18 +53,26 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let slot_stake_account = next_account_info(accounts_iter)?;
         let receiver = next_account_info(accounts_iter)?;
 
-        if slot_stake_account.key.ne(&slot.stake_addr) {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        let slot_stake_state = Account::unpack(&slot_stake_account.try_borrow_data()?)?;
-        if slot_stake_state.mint.ne(&slot.token_addr) {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        validate_receiver(payer.key, &slot_stake_state.mint, receiver.key)?;
+        validate_receiver(payer.key, &slot.token_addr, receiver.key)?;
 
         // The total amount for both claimed and unclaimed
-        let total_claim = claim_from_slot(slot_stake_state.amount, slot, payer.key);
+        let stake_amount = if is_native_mint(&slot.token_addr) {
+            slot_stake_account.lamports()
+        } else {
+            if slot_stake_account.key.ne(&slot.stake_addr) {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            let slot_stake_state = Account::unpack(&slot_stake_account.try_borrow_data()?)?;
+            if slot_stake_state.mint.ne(&slot.token_addr) {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            slot_stake_state.amount
+        };
+        let total_claim = claim_from_slot(stake_amount, slot, payer.key);
+
+        let (_, bump_seed) =
+            Pubkey::find_program_address(&[recipient_account.key.as_ref(), &[slot.id]], program_id);
 
         if total_claim > 0 {
             msg!("Pay {} to {}", total_claim, receiver.key);
@@ -72,12 +80,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
             general_transfer(
                 slot_stake_account,
                 receiver,
-                &slot_stake_state.mint,
+                &slot.token_addr,
                 total_claim,
                 pda_account,
-                recipient_account.key.as_ref(),
+                &[&[recipient_account.key.as_ref(), &[slot.id], &[bump_seed]]],
                 token_program,
-                program_id,
             )?;
         }
     }
