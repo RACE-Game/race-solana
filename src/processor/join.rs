@@ -54,7 +54,11 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
 
     let rent = Rent::default();
 
-    if !Rent::is_exempt(&rent, player_account.lamports(), player_account.data_len()) {
+    if !rent.is_exempt(player_account.lamports(), player_account.data_len()) {
+        return Err(ProgramError::AccountNotRentExempt);
+    }
+
+    if !rent.is_exempt(game_account.lamports(), game_account.data_len()) {
         return Err(ProgramError::AccountNotRentExempt);
     }
 
@@ -230,9 +234,8 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
     pack_state_to_account(game_state, &game_account, &player_account, &system_program)?;
 
     msg!(
-        "Player {} joined the game {}",
+        "Player {} joined game",
         payer_account.key,
-        game_account.key
     );
 
     Ok(())

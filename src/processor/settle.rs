@@ -7,10 +7,11 @@
 //! 1. All changes are sum up to zero.
 //! 2. Player without assets must be ejected.
 
-use crate::state::RecipientState;
-use crate::types::{SettleParams, Transfer};
+use crate::state::{Bonus, RecipientState};
+use crate::types::{Award, SettleParams, Transfer};
 use crate::{error::ProcessError, state::GameState};
 use borsh::BorshDeserialize;
+use solana_program::program::invoke_signed;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -19,6 +20,7 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
 };
+use spl_token::instruction::close_account;
 
 use super::misc::{general_transfer, pack_state_to_account, validate_receiver};
 
@@ -31,6 +33,7 @@ pub fn process(
     let SettleParams {
         settles,
         transfers,
+        awards,
         checkpoint,
         settle_version,
         next_settle_version,
@@ -87,7 +90,7 @@ pub fn process(
             .find(|p| p.access_version == settle.player_id)
         {
             Some(p) => p,
-            None => return Err(ProcessError::InvalidSettlePlayerAddress)?,
+            None => return Err(ProcessError::InvalidSettlePlayerId)?,
         };
 
         pays.push((player.addr, settle.amount));
@@ -107,7 +110,7 @@ pub fn process(
             stake_account,
             &receiver,
             &game_state.token_mint,
-            amount,
+            Some(amount),
             pda_account,
             &[&[game_account.key.as_ref(), &[bump_seed]]],
             token_program,
@@ -123,7 +126,7 @@ pub fn process(
                     stake_account,
                     &slot_stake_account,
                     &game_state.token_mint,
-                    amount,
+                    Some(amount),
                     pda_account,
                     &[&[game_account.key.as_ref(), &[bump_seed]]],
                     token_program,
@@ -133,6 +136,60 @@ pub fn process(
             }
         } else {
             return Err(ProcessError::InvalidSlotId)?;
+        }
+    }
+
+    for Award {
+        bonus_identifier,
+        player_id,
+    } in *awards
+    {
+        let bonuses: Vec<&Bonus> = game_state
+            .bonuses
+            .iter()
+            .filter(|b| b.identifier.eq(&bonus_identifier))
+            .collect();
+
+        for bonus in bonuses.iter() {
+            let bonus_account = next_account_info(account_iter)?;
+
+            if bonus.stake_addr.ne(&bonus_account.key) {
+                return Err(ProcessError::InvalidAwardIdentifier)?;
+            }
+
+            let receiver_account = next_account_info(account_iter)?;
+            let player = match game_state
+                .players
+                .iter_mut()
+                .find(|p| p.access_version == player_id)
+            {
+                Some(p) => p,
+                None => return Err(ProcessError::InvalidAwardPlayerId)?,
+            };
+
+            validate_receiver(&player.addr, &bonus.token_addr, receiver_account.key)?;
+
+            general_transfer(
+                bonus_account,
+                receiver_account,
+                &bonus.token_addr,
+                None, // Always transfer whole amount
+                pda_account,
+                &[&[game_account.key.as_ref()]],
+                token_program,
+            )?;
+
+            let close_ix = close_account(token_program.key, bonus_account.key, transactor_account.key, pda_account.key, &[])?;
+
+            invoke_signed(
+                &close_ix,
+                &[
+                    bonus_account.clone(),
+                    transactor_account.clone(),
+                    pda_account.clone(),
+                ],
+                &[&[game_account.key.as_ref(), &[bump_seed]]]
+            )?;
         }
     }
 

@@ -14,7 +14,7 @@ use spl_token::{
 
 use crate::{
     constants::RECIPIENT_ACCOUNT_LEN, error::ProcessError, processor::misc::is_native_mint,
-    state::RecipientState, types::CreateRecipientParams,
+    state::{RecipientSlot, RecipientState}, types::CreateRecipientParams,
 };
 
 #[inline(never)]
@@ -79,7 +79,20 @@ pub fn process(
         }
     }
 
-    let slots = slots.into_iter().map(Into::into).collect();
+    let slots: Vec<RecipientSlot> = slots.into_iter().map(Into::into).collect();
+
+    for slot in slots.iter() {
+        for share in slot.shares.iter() {
+            match &share.owner {
+                crate::state::RecipientSlotOwner::Unassigned { identifier } => {
+                    if identifier.is_empty() || identifier.len() > 16 {
+                        return Err(ProcessError::InvalidIdentifierLength)?;
+                    }
+                }
+                crate::state::RecipientSlotOwner::Assigned { .. } => (),
+            }
+        }
+    }
     let recipient_state = RecipientState {
         is_initialized: true,
         cap_addr: Some(cap_account.key.clone()),

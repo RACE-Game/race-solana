@@ -74,6 +74,14 @@ pub struct Vote {
     pub vote_type: VoteType,
 }
 
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
+pub struct Bonus {
+    pub identifier: String,
+    pub stake_addr: Pubkey,
+    pub token_addr: Pubkey,
+}
+
 // State of on-chain GameAccount
 #[cfg_attr(test, derive(PartialEq, Clone))]
 #[derive(Default, BorshDeserialize, BorshSerialize, Debug)]
@@ -121,6 +129,8 @@ pub struct GameState {
     pub checkpoint: Box<Vec<u8>>,
     // the lock for game entry
     pub entry_lock: EntryLock,
+    // a list of bonuses that can be awarded in game
+    pub bonuses: Box<Vec<Bonus>>,
 }
 
 impl IsInitialized for GameState {

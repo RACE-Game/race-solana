@@ -5,15 +5,15 @@ use solana_program::{
     msg,
     program::invoke_signed,
     program_error::ProgramError,
-    program_pack::Pack,
     pubkey::Pubkey,
 };
 
-use crate::{error::ProcessError, processor::misc::is_native_mint, state::GameState};
-use spl_token::{
-    instruction::{close_account, transfer},
-    state::Account,
+use crate::{
+    error::ProcessError,
+    processor::misc::{general_transfer, is_native_mint},
+    state::GameState,
 };
+use spl_token::instruction::close_account;
 
 #[inline(never)]
 pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
@@ -25,7 +25,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let game_account = next_account_info(account_iter)?;
     let stake_account = next_account_info(account_iter)?;
     let pda_account = next_account_info(account_iter)?;
-    let ata_account = next_account_info(account_iter)?;
+    let receiver_account = next_account_info(account_iter)?;
     let token_program = next_account_info(account_iter)?;
 
     let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
@@ -44,32 +44,19 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // We transfer the remaining balance to the owner
-    if is_native_mint(&game_state.token_mint) {
-        **(owner_account.try_borrow_mut_lamports()?) += stake_account.lamports();
-        **(stake_account.try_borrow_mut_lamports()?) = 0;
-    } else {
-        let token_state = Account::unpack(&stake_account.try_borrow_data()?)?;
-        if token_state.amount > 0 {
-            let transfer_ix = transfer(
-                token_program.key,
-                stake_account.key,
-                ata_account.key,
-                pda_account.key,
-                &[&pda_account.key],
-                token_state.amount,
-            )?;
 
-            invoke_signed(
-                &transfer_ix,
-                &[
-                    stake_account.clone(),
-                    ata_account.clone(),
-                    pda_account.clone(),
-                ],
-                &[&[game_account.key.as_ref(), &[bump_seed]]],
-            )?;
-        }
+    general_transfer(
+        stake_account,
+        receiver_account,
+        &game_state.token_mint,
+        None,
+        pda_account,
+        &[&[game_account.key.as_ref(), &[bump_seed]]],
+        token_program,
+    )?;
 
+    if !is_native_mint(&game_state.token_mint) {
+        msg!("Close stake account");
         let close_ix = close_account(
             token_program.key,
             stake_account.key,

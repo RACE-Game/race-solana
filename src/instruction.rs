@@ -1,6 +1,5 @@
 use crate::types::{
-    CreateGameAccountParams, CreatePlayerProfileParams, CreateRegistrationParams, JoinParams,
-    PublishParams, RegisterServerParams, SettleParams, VoteParams, ServeParams, CreateRecipientParams, AssignRecipientParams, DepositParams,
+    AssignRecipientParams, AttachBonusParams, CreateGameAccountParams, CreatePlayerProfileParams, CreateRecipientParams, CreateRegistrationParams, DepositParams, JoinParams, PublishParams, RegisterServerParams, ServeParams, SettleParams, VoteParams
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
@@ -24,12 +23,11 @@ pub enum RaceInstruction {
     ///
     /// Accounts expected:
     /// 0. `[signer]` The account of game owner
-    /// 1. `[]` The account of game account
-    /// 2. `[writable]` The game reg account
-    /// 3. `[writable]` The stake account of game
-    /// 4. `[]` PDA account.
-    /// 5. `[]` ATA account to receive remaining tokens
-    /// 6. `[]` Token program.
+    /// 1. `[writable]` The account of game account
+    /// 2. `[writable]` The stake account of game
+    /// 3. `[]` PDA account.
+    /// 4. `[]` The account to receive tokens
+    /// 5. `[]` Token program.
     CloseGameAccount,
 
     /// # [2] Create an on-chain "lobby" for game registration
@@ -68,6 +66,7 @@ pub enum RaceInstruction {
     /// Following:
     /// `[]` Every leaving players account, must be in the same order with Eject settles
     /// `[]` Every recipient slot accounts to receive transfer
+    /// `[]` Every bonus account and the receiver account to receive bonus
     Settle { params: SettleParams },
 
     /// # [6] Vote
@@ -169,14 +168,24 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The payer account
     /// 1. `[]` The player account
-    /// 1. `[writable]` The temp account
-    /// 2. `[writable]` The game account
-    /// 3. `[]` The mint account
-    /// 4. `[writable]` The stake account that holds players' deposit assets
-    /// 5. `[writable]` The pda account
-    /// 6. `[]` The SPL token program
-    /// 7. `[]` The system program
+    /// 2. `[writable]` The temp account
+    /// 3. `[writable]` The game account
+    /// 4. `[]` The mint account
+    /// 5. `[writable]` The stake account that holds players' deposit assets
+    /// 6. `[writable]` The pda account
+    /// 7. `[]` The SPL token program
+    /// 8. `[]` The system program
     Deposit { params: DepositParams },
+
+    /// # [16] Attach a bonus to a game
+    ///
+    /// Accounts expected:
+    /// 0. `[signer]` The payer account
+    /// 1. `[writable]` The game account
+    /// 2. `[]` The SPL token program
+    /// 3. `[]` The system program
+    /// Rest. `[writable]` The temp account for each bonuses
+    AttachBonus { params: AttachBonusParams },
 }
 
 impl RaceInstruction {

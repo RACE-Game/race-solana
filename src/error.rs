@@ -48,8 +48,8 @@ pub enum ProcessError {
     InvalidSettleAmounts,
 
     /// B
-    #[error("Invalid settle player address")]
-    InvalidSettlePlayerAddress,
+    #[error("Invalid settle player id")]
+    InvalidSettlePlayerId,
 
     /// C
     #[error("Unhandled eliminated player")]
@@ -182,6 +182,26 @@ pub enum ProcessError {
     /// 2C
     #[error("Invalid token mint")]
     InvalidTokenMint,
+
+    /// 2D
+    #[error("Player not in game")]
+    PlayerNotInGame,
+
+    /// 2E
+    #[error("Invalid identifier length")]
+    InvalidIdentifierLength,
+
+    /// 2F
+    #[error("Invalid award identifier")]
+    InvalidAwardIdentifier,
+
+    /// 30
+    #[error("Invalid award player id")]
+    InvalidAwardPlayerId,
+
+    /// 31
+    #[error("Native token is not supported")]
+    NativeTokenNotSupported,
 }
 
 impl From<ProcessError> for ProgramError {

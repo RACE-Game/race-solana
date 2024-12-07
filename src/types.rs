@@ -127,10 +127,17 @@ pub struct Transfer {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+pub struct Award {
+    pub player_id: u64,
+    pub bonus_identifier: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct SettleParams {
     pub settles: Box<Vec<Settle>>,
     pub transfers: Box<Vec<Transfer>>,
     pub checkpoint: Box<Vec<u8>>,
+    pub awards: Box<Vec<Award>>,
     pub settle_version: u64,
     pub next_settle_version: u64,
     pub entry_lock: Option<EntryLock>,
@@ -184,4 +191,9 @@ pub struct CreateRecipientParams {
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct AssignRecipientParams {
     pub identifier: String
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct AttachBonusParams {
+    pub identifiers: Vec<String>,
 }

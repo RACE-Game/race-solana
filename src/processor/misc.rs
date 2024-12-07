@@ -62,10 +62,11 @@ pub fn transfer_spl<'a>(
     dest_account: AccountInfo<'a>,
     pda: AccountInfo<'a>,
     token_program: &AccountInfo<'a>,
-    amount: u64,
+    amount: Option<u64>,
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    if Account::unpack(&dest_account.try_borrow_data()?).is_ok() {
+    if let Ok(source_state) = Account::unpack(&dest_account.try_borrow_data()?) {
+        let amount = amount.unwrap_or_else(|| source_state.amount);
         let ix = transfer(
             token_program.key,
             source_account.key,
@@ -74,6 +75,8 @@ pub fn transfer_spl<'a>(
             &[pda.key],
             amount,
         )?;
+
+        msg!("Transfer {} SPL to {}", amount, dest_account.key);
 
         invoke_signed(
             &ix,
@@ -91,11 +94,14 @@ pub fn transfer_spl<'a>(
 pub fn transfer_sol<'a>(
     source_account: AccountInfo<'a>,
     dest_account: AccountInfo<'a>,
-    amount: u64,
+    amount: Option<u64>,
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
+    let amount = amount.unwrap_or_else(|| source_account.lamports());
     let ix =
         solana_program::system_instruction::transfer(source_account.key, dest_account.key, amount);
+
+    msg!("Transfer {} Lamports to {}", amount, dest_account.key);
 
     invoke_signed(
         &ix,
@@ -111,7 +117,7 @@ pub fn general_transfer<'a>(
     source_account: &AccountInfo<'a>,
     dest_account: &AccountInfo<'a>,
     mint: &Pubkey,
-    amount: u64,
+    amount: Option<u64>,
     pda: &AccountInfo<'a>,
     signer_seeds: &[&[&[u8]]],
     token_program: &AccountInfo<'a>,

@@ -115,6 +115,7 @@ pub fn process(
         recipient_addr,
         checkpoint: Default::default(),
         entry_lock: EntryLock::Open,
+        bonuses: Default::default(),
     };
 
     msg!("Created game account: {:?}", game_account.key);

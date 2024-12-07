@@ -81,7 +81,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
                 slot_stake_account,
                 receiver,
                 &slot.token_addr,
-                total_claim,
+                Some(total_claim),
                 pda_account,
                 &[&[recipient_account.key.as_ref(), &[slot.id], &[bump_seed]]],
                 token_program,
