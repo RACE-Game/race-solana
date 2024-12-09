@@ -105,7 +105,7 @@ pub fn process(
         settle_version: 0,
         max_players: params.max_players,
         data_len: params.data.len() as u32,
-        data: Box::new(params.data),
+        data: params.data,
         players: Default::default(),
         deposits: Default::default(),
         servers: Default::default(),

@@ -65,27 +65,31 @@ pub fn transfer_spl<'a>(
     amount: Option<u64>,
     signer_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    if let Ok(source_state) = Account::unpack(&dest_account.try_borrow_data()?) {
-        let amount = amount.unwrap_or_else(|| source_state.amount);
-        let ix = transfer(
-            token_program.key,
-            source_account.key,
-            dest_account.key,
-            &pda.key,
-            &[pda.key],
-            amount,
-        )?;
-
-        msg!("Transfer {} SPL to {}", amount, dest_account.key);
-
-        invoke_signed(
-            &ix,
-            &[source_account.clone(), dest_account.clone(), pda.clone()],
-            signer_seeds,
-        )?;
-    } else {
-        msg!("Receiver account {:?} not available", dest_account.key);
+    if Account::unpack(&dest_account.try_borrow_data()?).is_err() {
+        return Err(ProcessError::ReceiverUninitialized)?;
     }
+
+    let amount = match amount {
+        Some(amount) => amount,
+        None => Account::unpack(&source_account.try_borrow_data()?)?.amount,
+    };
+
+    let ix = transfer(
+        token_program.key,
+        source_account.key,
+        dest_account.key,
+        &pda.key,
+        &[pda.key],
+        amount,
+    )?;
+
+    msg!("Transfer {} SPL to {}", amount, dest_account.key);
+
+    invoke_signed(
+        &ix,
+        &[source_account.clone(), dest_account.clone(), pda.clone()],
+        signer_seeds,
+    )?;
 
     Ok(())
 }
@@ -123,7 +127,12 @@ pub fn general_transfer<'a>(
     token_program: &AccountInfo<'a>,
 ) -> ProgramResult {
     if is_native_mint(mint) {
-        transfer_sol(source_account.to_owned(), dest_account.to_owned(), amount, signer_seeds)?;
+        transfer_sol(
+            source_account.to_owned(),
+            dest_account.to_owned(),
+            amount,
+            signer_seeds,
+        )?;
     } else {
         transfer_spl(
             source_account.to_owned(),

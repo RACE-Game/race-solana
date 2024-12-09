@@ -30,8 +30,6 @@ impl Default for EntryType {
 }
 
 #[derive(Default, Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "camelCase"))]
 pub enum EntryLock {
     #[default]
     Open,
@@ -58,13 +56,25 @@ pub struct ServerJoin {
     pub verify_key: String,
 }
 
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Eq)]
+pub enum DepositStatus {
+    #[default]
+    Pending,
+    Rejected,
+    Refunded,
+    Accepted,
+}
+
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug)]
 pub struct PlayerDeposit {
     pub addr: Pubkey,
     pub amount: u64,
+    pub access_version: u64,
     pub settle_version: u64,
+    pub status: DepositStatus,
 }
+
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
@@ -80,6 +90,7 @@ pub struct Bonus {
     pub identifier: String,
     pub stake_addr: Pubkey,
     pub token_addr: Pubkey,
+    pub amount: u64,
 }
 
 // State of on-chain GameAccount
@@ -110,15 +121,15 @@ pub struct GameState {
     // game players
     pub players: Box<Vec<PlayerJoin>>,
     // deposits
-    pub deposits: Box<Vec<PlayerDeposit>>,
+    pub deposits: Vec<PlayerDeposit>,
     // game servers (max: 10)
-    pub servers: Box<Vec<ServerJoin>>,
+    pub servers: Vec<ServerJoin>,
     // length of game-specific data
     pub data_len: u32,
     // serialized data of game-specific data such as sb/bb in Texas Holdem
-    pub data: Box<Vec<u8>>,
+    pub data: Vec<u8>,
     // game votes
-    pub votes: Box<Vec<Vote>>,
+    pub votes: Vec<Vote>,
     // unlock time
     pub unlock_time: Option<u64>,
     // the entry type
@@ -126,11 +137,11 @@ pub struct GameState {
     // the recipient account
     pub recipient_addr: Pubkey,
     // the checkpoint state
-    pub checkpoint: Box<Vec<u8>>,
+    pub checkpoint: Vec<u8>,
     // the lock for game entry
     pub entry_lock: EntryLock,
     // a list of bonuses that can be awarded in game
-    pub bonuses: Box<Vec<Bonus>>,
+    pub bonuses: Vec<Bonus>,
 }
 
 impl IsInitialized for GameState {

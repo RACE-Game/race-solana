@@ -136,12 +136,14 @@ pub struct Award {
 pub struct SettleParams {
     pub settles: Box<Vec<Settle>>,
     pub transfers: Box<Vec<Transfer>>,
-    pub checkpoint: Box<Vec<u8>>,
     pub awards: Box<Vec<Award>>,
+    pub checkpoint: Box<Vec<u8>>,
+    pub access_version: u64,
     pub settle_version: u64,
     pub next_settle_version: u64,
     pub entry_lock: Option<EntryLock>,
     pub reset: bool,
+    pub accept_deposits: Box<Vec<u64>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
@@ -196,4 +198,9 @@ pub struct AssignRecipientParams {
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct AttachBonusParams {
     pub identifiers: Vec<String>,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct RejectDepositsParams {
+    pub reject_deposits: Vec<u64>,
 }

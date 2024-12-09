@@ -1,12 +1,11 @@
 use crate::processor::misc::pack_state_to_account;
-use crate::state::{PlayerDeposit, RecipientState};
+use crate::state::{DepositStatus, PlayerDeposit, RecipientState};
 use crate::types::JoinParams;
 use crate::{
     error::ProcessError,
     state::{EntryType, GameState, PlayerJoin},
 };
 use borsh::BorshDeserialize;
-///! Player joins a game (cash, sng or tourney)
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -228,7 +227,9 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
     game_state.deposits.push(PlayerDeposit {
         addr: payer_account.key.clone(),
         amount: params.amount,
-        settle_version: params.settle_version
+        access_version: game_state.access_version,
+        settle_version: params.settle_version,
+        status: DepositStatus::Accepted,
     });
 
     pack_state_to_account(game_state, &game_account, &player_account, &system_program)?;

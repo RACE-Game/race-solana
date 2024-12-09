@@ -19,6 +19,7 @@ mod assign_recipient;
 mod recipient_claim;
 mod deposit;
 mod attach_bonus;
+mod reject_deposits;
 
 pub fn process(
     program_id: &Pubkey,
@@ -97,6 +98,10 @@ pub fn process(
         RaceInstruction::AttachBonus { params } => {
             msg!("Attach bonus");
             attach_bonus::process(program_id, accounts, params)
+        }
+        RaceInstruction::RejectDeposits { params } => {
+            msg!("Reject Deposits");
+            reject_deposits::process(program_id, accounts, params)
         }
     };
 

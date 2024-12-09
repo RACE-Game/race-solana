@@ -202,6 +202,22 @@ pub enum ProcessError {
     /// 31
     #[error("Native token is not supported")]
     NativeTokenNotSupported,
+
+    /// 32
+    #[error("Signer is not current transactor")]
+    SignerNotTransactor,
+
+    /// 33
+    #[error("Invalid reject deposit")]
+    InvalidRejectDeposit,
+
+    /// 34
+    #[error("Receiver account uninitialized")]
+    ReceiverUninitialized,
+
+    /// 35
+    #[error("Duplicated deposit rejection")]
+    DuplicatedDepositRejection,
 }
 
 impl From<ProcessError> for ProgramError {

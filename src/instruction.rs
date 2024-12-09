@@ -1,5 +1,7 @@
 use crate::types::{
-    AssignRecipientParams, AttachBonusParams, CreateGameAccountParams, CreatePlayerProfileParams, CreateRecipientParams, CreateRegistrationParams, DepositParams, JoinParams, PublishParams, RegisterServerParams, ServeParams, SettleParams, VoteParams
+    AssignRecipientParams, AttachBonusParams, CreateGameAccountParams, CreatePlayerProfileParams,
+    CreateRecipientParams, CreateRegistrationParams, DepositParams, JoinParams, PublishParams,
+    RegisterServerParams, RejectDepositsParams, ServeParams, SettleParams, VoteParams,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
@@ -85,7 +87,7 @@ pub enum RaceInstruction {
     /// 1. `[writable]` The game account to be served
     /// 2. `[]` The server account
     /// 3. `[]` The system program
-    ServeGame{ params: ServeParams },
+    ServeGame { params: ServeParams },
 
     /// # [8] Register a game to the registry
     ///
@@ -186,6 +188,18 @@ pub enum RaceInstruction {
     /// 3. `[]` The system program
     /// Rest. `[writable]` The temp account for each bonuses
     AttachBonus { params: AttachBonusParams },
+
+    /// #[17] Reject a deposit
+    ///
+    /// Accounts expected:
+    /// 0. `[signer]` The transactor account
+    /// 1. `[writable]` The game account
+    /// 2. `[]` The stake account
+    /// 3. `[]` The PDA from game account
+    /// 4. `[]` The SPL token program
+    /// 5. `[]` The system program
+    /// Rest. `[]` The receiver for each rejected deposit
+    RejectDeposits { params: RejectDepositsParams },
 }
 
 impl RaceInstruction {

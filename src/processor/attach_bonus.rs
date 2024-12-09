@@ -70,6 +70,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: AttachBonu
 
         let bonus = Bonus {
             identifier,
+            amount: temp_state.amount,
             stake_addr: temp_account.key.clone(),
             token_addr: temp_state.mint.clone(),
         };
