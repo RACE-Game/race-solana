@@ -77,6 +77,11 @@ pub fn process(
 
             deposit.status = DepositStatus::Refunded;
         }
+
+        // The PlayerJoin with the same access_version should be removed as well
+        // So the player can later join again
+
+        game_state.players.retain(|p| p.access_version != reject_deposit);
     }
 
     pack_state_to_account(

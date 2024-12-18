@@ -35,12 +35,13 @@ pub fn process(
         transfers,
         awards,
         checkpoint,
-        access_version,
+        // access_version,
         settle_version,
         next_settle_version,
         entry_lock,
         reset,
         accept_deposits,
+        ..
     } = params;
 
     let mut account_iter = accounts.iter();
