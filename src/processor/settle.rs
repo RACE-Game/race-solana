@@ -7,7 +7,7 @@
 //! 1. All changes are sum up to zero.
 //! 2. Player without assets must be ejected.
 
-use crate::state::{Bonus, DepositStatus, RecipientState};
+use crate::state::{DepositStatus, RecipientState};
 use crate::types::{Award, Settle, SettleParams, Transfer};
 use crate::{error::ProcessError, state::GameState};
 use borsh::BorshDeserialize;
@@ -82,7 +82,11 @@ pub fn process(
         return Err(ProcessError::InvalidStakeAccount)?;
     }
 
-    let (_, bump_seed) = Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
+    let (pda, bump_seed) = Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
+
+    if pda.ne(&pda_account.key) {
+        return Err(ProcessError::InvalidPDA)?;
+    }
 
     handle_settles(
         &mut game_state,
@@ -110,9 +114,9 @@ pub fn process(
     handle_bonuses(
         &mut game_state,
         *awards,
-        transactor_account,
         game_account,
         pda_account,
+        transactor_account,
         bump_seed,
         token_program,
         &mut account_iter,
@@ -202,9 +206,9 @@ fn handle_settles<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
 fn handle_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     game_state: &'c mut GameState,
     awards: Vec<Award>,
-    transactor_account: &'a AccountInfo<'b>,
     game_account: &'a AccountInfo<'b>,
     pda_account: &'a AccountInfo<'b>,
+    transactor_account: &'a AccountInfo<'b>,
     bump_seed: u8,
     token_program: &'a AccountInfo<'b>,
     account_iter: &'c mut I,
@@ -214,20 +218,18 @@ fn handle_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
         player_id,
     } in awards
     {
-        let bonuses: Vec<&Bonus> = game_state
-            .bonuses
-            .iter()
-            .filter(|b| b.identifier.eq(&bonus_identifier))
-            .collect();
+        for bonus in game_state.bonuses.iter() {
+            if bonus.identifier.ne(&bonus_identifier) {
+                continue;
+            }
 
-        for bonus in bonuses.iter() {
             let bonus_account = next_account_info(account_iter)?;
+            let receiver_account = next_account_info(account_iter)?;
 
             if bonus.stake_addr.ne(&bonus_account.key) {
                 return Err(ProcessError::InvalidAwardIdentifier)?;
             }
 
-            let receiver_account = next_account_info(account_iter)?;
             let player = match game_state
                 .players
                 .iter_mut()
@@ -243,9 +245,9 @@ fn handle_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
                 bonus_account,
                 receiver_account,
                 &bonus.token_addr,
-                None, // Always transfer whole amount
+                None,
                 pda_account,
-                &[&[game_account.key.as_ref()]],
+                &[&[game_account.key.as_ref(), &[bump_seed]]],
                 token_program,
             )?;
 
@@ -254,7 +256,7 @@ fn handle_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
                 bonus_account.key,
                 transactor_account.key,
                 pda_account.key,
-                &[],
+                &[pda_account.key],
             )?;
 
             invoke_signed(
