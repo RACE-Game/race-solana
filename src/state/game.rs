@@ -56,6 +56,13 @@ pub struct ServerJoin {
     pub verify_key: String,
 }
 
+#[cfg_attr(test, derive(PartialEq, Eq))]
+#[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug)]
+pub struct PlayerBalance {
+    pub player_id: u64,
+    pub balance: u64,
+}
+
 #[derive(Default, BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq, Eq)]
 pub enum DepositStatus {
     #[default]
@@ -142,6 +149,8 @@ pub struct GameState {
     pub entry_lock: EntryLock,
     // a list of bonuses that can be awarded in game
     pub bonuses: Vec<Bonus>,
+    // a list of balance snapshot for current checkpoint
+    pub balances: Vec<PlayerBalance>,
 }
 
 impl IsInitialized for GameState {

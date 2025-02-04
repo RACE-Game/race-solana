@@ -114,15 +114,21 @@ pub enum AssetChange {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+pub enum BalanceChange {
+    Add(u64),
+    Sub(u64),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct Settle {
     pub player_id: u64,
     pub amount: u64,
+    pub change: Option<BalanceChange>,
     pub eject: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct Transfer {
-    pub slot_id: u8,
     pub amount: u64,
 }
 
@@ -135,14 +141,13 @@ pub struct Award {
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct SettleParams {
     pub settles: Box<Vec<Settle>>,
-    pub transfers: Box<Vec<Transfer>>,
+    pub transfer: Option<Transfer>,
     pub awards: Box<Vec<Award>>,
     pub checkpoint: Box<Vec<u8>>,
     pub access_version: u64,
     pub settle_version: u64,
     pub next_settle_version: u64,
     pub entry_lock: Option<EntryLock>,
-    pub reset: bool,
     pub accept_deposits: Box<Vec<u64>>,
 }
 

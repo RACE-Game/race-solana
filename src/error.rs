@@ -218,6 +218,10 @@ pub enum ProcessError {
     /// 35
     #[error("Duplicated deposit rejection")]
     DuplicatedDepositRejection,
+
+    /// 36
+    #[error("Invalid settle balance")]
+    InvalidSettleBalance,
 }
 
 impl From<ProcessError> for ProgramError {

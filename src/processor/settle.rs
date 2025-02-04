@@ -8,8 +8,8 @@
 //! 2. Player without assets must be ejected.
 
 use crate::state::{DepositStatus, RecipientState};
-use crate::types::{Award, Settle, SettleParams, Transfer};
-use crate::{error::ProcessError, state::GameState};
+use crate::types::{Award, Settle, SettleParams, Transfer, BalanceChange};
+use crate::{error::ProcessError, state::{GameState, PlayerBalance}};
 use borsh::BorshDeserialize;
 use solana_program::program::invoke_signed;
 use solana_program::{
@@ -32,14 +32,13 @@ pub fn process(
 ) -> ProgramResult {
     let SettleParams {
         settles,
-        transfers,
+        transfer,
         awards,
         checkpoint,
         // access_version,
         settle_version,
         next_settle_version,
         entry_lock,
-        reset,
         accept_deposits,
         ..
     } = params;
@@ -99,17 +98,19 @@ pub fn process(
         &mut account_iter,
     )?;
 
-    handle_transfers(
-        &game_state,
-        *transfers,
-        game_account,
-        stake_account,
-        recipient_account,
-        pda_account,
-        bump_seed,
-        token_program,
-        &mut account_iter,
-    )?;
+    if let Some(transfer) = transfer {
+        handle_transfer(
+            &game_state,
+            transfer,
+            game_account,
+            stake_account,
+            recipient_account,
+            pda_account,
+            bump_seed,
+            token_program,
+            &mut account_iter,
+        )?;
+    }
 
     handle_bonuses(
         &mut game_state,
@@ -139,11 +140,6 @@ pub fn process(
         game_state.entry_lock = entry_lock;
     }
 
-    if reset {
-        game_state.players.clear();
-        game_state.deposits.clear();
-    }
-
     pack_state_to_account(
         game_state,
         &game_account,
@@ -168,6 +164,31 @@ fn handle_settles<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     let mut pays = vec![];
 
     for settle in settles.into_iter() {
+
+        if let Some(player_balance) = game_state.balances.iter_mut().find(|pb| pb.player_id == settle.player_id) {
+            match settle.change {
+                Some(BalanceChange::Add(amount)) => {
+                    player_balance.balance += amount;
+                }
+                Some(BalanceChange::Sub(amount)) => {
+                    player_balance.balance = player_balance.balance.checked_sub(amount).ok_or(ProcessError::InvalidSettleBalance)?;
+                }
+                None => ()
+            }
+        } else {
+            match settle.change {
+                Some(BalanceChange::Add(amount)) => {
+                    game_state.balances.push(PlayerBalance {
+                        player_id: settle.player_id, balance: amount
+                    })
+                }
+                Some(BalanceChange::Sub(_)) => {
+                    return Err(ProcessError::InvalidSettleBalance)?;
+                }
+                None => ()
+            }
+        }
+
         let player = match game_state
             .players
             .iter_mut()
@@ -274,9 +295,9 @@ fn handle_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
 }
 
 #[inline(never)]
-fn handle_transfers<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
+fn handle_transfer<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     game_state: &'c GameState,
-    transfers: Vec<Transfer>,
+    transfer: Transfer,
     game_account: &'a AccountInfo<'b>,
     stake_account: &'a AccountInfo<'b>,
     recipient_account: &'a AccountInfo<'b>,
@@ -288,25 +309,23 @@ fn handle_transfers<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     let recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
 
     // Handle commission transfers
-    for Transfer { slot_id, amount } in transfers {
-        let slot_stake_account = next_account_info(account_iter)?;
-        if let Some(slot) = recipient_state.slots.iter().find(|s| s.id == slot_id) {
-            if slot_stake_account.key.eq(&slot.stake_addr) {
-                general_transfer(
-                    stake_account,
-                    &slot_stake_account,
-                    &game_state.token_mint,
-                    Some(amount),
-                    pda_account,
-                    &[&[game_account.key.as_ref(), &[bump_seed]]],
-                    token_program,
-                )?;
-            } else {
-                return Err(ProcessError::InvalidSlotStakeAccount)?;
-            }
+    let slot_stake_account = next_account_info(account_iter)?;
+    if let Some(slot) = recipient_state.slots.iter().find(|s| s.token_addr.eq(&game_state.token_mint)) {
+        if slot_stake_account.key.eq(&slot.stake_addr) {
+            general_transfer(
+                stake_account,
+                &slot_stake_account,
+                &game_state.token_mint,
+                Some(transfer.amount),
+                pda_account,
+                &[&[game_account.key.as_ref(), &[bump_seed]]],
+                token_program,
+            )?;
         } else {
-            return Err(ProcessError::InvalidSlotId)?;
+            return Err(ProcessError::InvalidSlotStakeAccount)?;
         }
+    } else {
+        return Err(ProcessError::InvalidSlotId)?;
     }
 
     Ok(())
