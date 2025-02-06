@@ -189,6 +189,8 @@ fn handle_settles<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
             }
         }
 
+        game_state.balances.retain(|b| b.balance > 0);
+
         let player = match game_state
             .players
             .iter_mut()
