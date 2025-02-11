@@ -8,8 +8,11 @@
 //! 2. Player without assets must be ejected.
 
 use crate::state::{DepositStatus, RecipientState};
-use crate::types::{Award, Settle, SettleParams, Transfer, BalanceChange};
-use crate::{error::ProcessError, state::{GameState, PlayerBalance}};
+use crate::types::{Award, BalanceChange, Settle, SettleParams, Transfer};
+use crate::{
+    error::ProcessError,
+    state::{GameState, PlayerBalance},
+};
 use borsh::BorshDeserialize;
 use solana_program::program::invoke_signed;
 use solana_program::{
@@ -21,6 +24,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use spl_token::instruction::close_account;
+use spl_token::state::Account;
 
 use super::misc::{general_transfer, pack_state_to_account, validate_receiver};
 
@@ -124,7 +128,11 @@ pub fn process(
     )?;
 
     for accept_deposit in *accept_deposits {
-        if let Some(d) = game_state.deposits.iter_mut().find(|d| d.access_version == accept_deposit) {
+        if let Some(d) = game_state
+            .deposits
+            .iter_mut()
+            .find(|d| d.access_version == accept_deposit)
+        {
             msg!("Mark accepted deposit: {}", d.access_version);
             d.status = DepositStatus::Accepted;
         }
@@ -132,7 +140,9 @@ pub fn process(
 
     game_state
         .deposits
-        .retain(|d| d.status == DepositStatus::Pending);
+        .retain(|d| matches!(d.status, DepositStatus::Pending | DepositStatus::Rejected));
+
+    validate_balance(&game_state, &stake_account)?;
 
     game_state.settle_version = next_settle_version;
     game_state.checkpoint = *checkpoint;
@@ -151,6 +161,27 @@ pub fn process(
 }
 
 #[inline(never)]
+fn validate_balance<'a, 'b>(
+    game_state: &'a GameState,
+    stake_account: &'a AccountInfo<'b>,
+) -> ProgramResult {
+    let token_state = Account::unpack(&stake_account.try_borrow_data()?)?;
+    let stake_amount = token_state.amount;
+    let balance_sum = game_state.balances.iter().map(|b| b.balance).sum::<u64>();
+    let unhandled_deposit = game_state
+        .deposits
+        .iter()
+        .filter(|d| matches!(d.status, DepositStatus::Pending | DepositStatus::Rejected))
+        .map(|d| d.amount)
+        .sum::<u64>();
+
+    if !(stake_amount == balance_sum + unhandled_deposit) {
+        Err(ProcessError::UnbalancedGameStake)?
+    }
+    Ok(())
+}
+
+#[inline(never)]
 fn handle_settles<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     game_state: &'c mut GameState,
     settles: Vec<Settle>,
@@ -164,28 +195,33 @@ fn handle_settles<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     let mut pays = vec![];
 
     for settle in settles.into_iter() {
-
-        if let Some(player_balance) = game_state.balances.iter_mut().find(|pb| pb.player_id == settle.player_id) {
+        if let Some(player_balance) = game_state
+            .balances
+            .iter_mut()
+            .find(|pb| pb.player_id == settle.player_id)
+        {
             match settle.change {
                 Some(BalanceChange::Add(amount)) => {
                     player_balance.balance += amount;
                 }
                 Some(BalanceChange::Sub(amount)) => {
-                    player_balance.balance = player_balance.balance.checked_sub(amount).ok_or(ProcessError::InvalidSettleBalance)?;
+                    player_balance.balance = player_balance
+                        .balance
+                        .checked_sub(amount)
+                        .ok_or(ProcessError::InvalidSettleBalance)?;
                 }
-                None => ()
+                None => (),
             }
         } else {
             match settle.change {
-                Some(BalanceChange::Add(amount)) => {
-                    game_state.balances.push(PlayerBalance {
-                        player_id: settle.player_id, balance: amount
-                    })
-                }
+                Some(BalanceChange::Add(amount)) => game_state.balances.push(PlayerBalance {
+                    player_id: settle.player_id,
+                    balance: amount,
+                }),
                 Some(BalanceChange::Sub(_)) => {
                     return Err(ProcessError::InvalidSettleBalance)?;
                 }
-                None => ()
+                None => (),
             }
         }
 
@@ -312,7 +348,11 @@ fn handle_transfer<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
 
     // Handle commission transfers
     let slot_stake_account = next_account_info(account_iter)?;
-    if let Some(slot) = recipient_state.slots.iter().find(|s| s.token_addr.eq(&game_state.token_mint)) {
+    if let Some(slot) = recipient_state
+        .slots
+        .iter()
+        .find(|s| s.token_addr.eq(&game_state.token_mint))
+    {
         if slot_stake_account.key.eq(&slot.stake_addr) {
             general_transfer(
                 stake_account,

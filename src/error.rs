@@ -222,6 +222,10 @@ pub enum ProcessError {
     /// 36
     #[error("Invalid settle balance")]
     InvalidSettleBalance,
+
+    /// 37
+    #[error("Unbalanced game stake")]
+    UnbalancedGameStake,
 }
 
 impl From<ProcessError> for ProgramError {
