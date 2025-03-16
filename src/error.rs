@@ -226,6 +226,10 @@ pub enum ProcessError {
     /// 37
     #[error("Unbalanced game stake")]
     UnbalancedGameStake,
+
+    /// 38
+    #[error("Server account not available")]
+    ServerAccountNotAvailable,
 }
 
 impl From<ProcessError> for ProgramError {

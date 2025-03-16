@@ -42,8 +42,13 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
     let server_account = next_account_info(account_iter)?;
     let server_state = ServerState::unpack(&server_account.try_borrow_data()?)?;
     if !server_state.is_initialized {
+        return Err(ProcessError::ServerAccountNotAvailable)?;
+    }
+
+    if game_state.servers.iter().any(|s| s.addr.eq(server_account.key)) {
         return Err(ProcessError::DuplicateServerJoin)?;
     }
+
     if game_state.servers.len() == MAX_SERVER_NUM {
         return Err(ProcessError::ServerNumberExceedsLimit)?;
     }
