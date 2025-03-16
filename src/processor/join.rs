@@ -229,7 +229,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
         amount: params.amount,
         access_version: game_state.access_version,
         settle_version: params.settle_version,
-        status: DepositStatus::Accepted,
+        status: DepositStatus::Pending,
     });
 
     pack_state_to_account(game_state, &game_account, &player_account, &system_program)?;
