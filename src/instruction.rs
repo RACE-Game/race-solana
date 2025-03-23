@@ -66,7 +66,7 @@ pub enum RaceInstruction {
     /// 5. `[]` The token program
     /// 6. `[]` The system program
     /// Following:
-    /// `[]` Every leaving players account, must be in the same order with Eject settles
+    /// `[]` Every players' account to get paid, must be in the same order with payment settles
     /// `[]` Every recipient slot accounts to receive transfer
     /// `[]` Every bonus account and the receiver account to receive bonus
     Settle { params: SettleParams },

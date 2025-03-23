@@ -54,6 +54,7 @@ pub fn process(
         };
 
         if deposit.status != DepositStatus::Pending {
+            msg!("Deposit status is {:?} which is not pending", deposit.status);
             return Err(ProcessError::DuplicatedDepositRejection)?;
         }
 

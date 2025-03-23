@@ -26,7 +26,7 @@ use solana_program::{
 use spl_token::instruction::close_account;
 use spl_token::state::Account;
 
-use super::misc::{general_transfer, pack_state_to_account, validate_receiver};
+use super::misc::{general_transfer, is_native_mint, pack_state_to_account, validate_receiver};
 
 #[inline(never)]
 pub fn process(
@@ -67,8 +67,9 @@ pub fn process(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Collect the pays.
     let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
+
+    msg!("Game state deserialized");
 
     if game_state.settle_version != settle_version {
         return Err(ProcessError::InvalidSettleVersion)?;
@@ -91,6 +92,8 @@ pub fn process(
         return Err(ProcessError::InvalidPDA)?;
     }
 
+    msg!("Handle settles: {:?}", settles);
+
     handle_settles(
         &mut game_state,
         *settles,
@@ -103,6 +106,8 @@ pub fn process(
     )?;
 
     if let Some(transfer) = transfer {
+        msg!("Handle transfer: {:?}", transfer);
+
         handle_transfer(
             &game_state,
             transfer,
@@ -116,6 +121,7 @@ pub fn process(
         )?;
     }
 
+    msg!("Handle bonuses: {:?}", awards);
     handle_bonuses(
         &mut game_state,
         *awards,
@@ -127,6 +133,7 @@ pub fn process(
         &mut account_iter,
     )?;
 
+    msg!("Handle accepted deposits: {:?}", accept_deposits);
     for accept_deposit in *accept_deposits {
         if let Some(d) = game_state
             .deposits
@@ -143,10 +150,13 @@ pub fn process(
         .retain(|d| matches!(d.status, DepositStatus::Pending | DepositStatus::Rejected));
 
     validate_balance(&game_state, &stake_account)?;
+    msg!("Balance validation passed");
 
+    msg!("Bump settle version to {}", next_settle_version);
     game_state.settle_version = next_settle_version;
     game_state.checkpoint = *checkpoint;
     if let Some(entry_lock) = entry_lock {
+        msg!("Update entry lock: {:?}", entry_lock);
         game_state.entry_lock = entry_lock;
     }
 
@@ -165,8 +175,13 @@ fn validate_balance<'a, 'b>(
     game_state: &'a GameState,
     stake_account: &'a AccountInfo<'b>,
 ) -> ProgramResult {
-    let token_state = Account::unpack(&stake_account.try_borrow_data()?)?;
-    let stake_amount = token_state.amount;
+    let stake_amount = if is_native_mint(&game_state.token_mint) {
+        stake_account.lamports()
+    } else {
+        let token_state = Account::unpack(&stake_account.try_borrow_data()?)?;
+        token_state.amount
+    };
+
     let balance_sum = game_state.balances.iter().map(|b| b.balance).sum::<u64>();
     let unhandled_deposit = game_state
         .deposits
@@ -176,6 +191,7 @@ fn validate_balance<'a, 'b>(
         .sum::<u64>();
 
     if !(stake_amount == balance_sum + unhandled_deposit) {
+        msg!("Stake amount = {}, balance_sum + unhandled_deposit = {}", stake_amount, balance_sum + unhandled_deposit);
         Err(ProcessError::UnbalancedGameStake)?
     }
     Ok(())
@@ -227,16 +243,20 @@ fn handle_settles<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
 
         game_state.balances.retain(|b| b.balance > 0);
 
-        let player = match game_state
+        if let Some(player) = game_state
             .players
             .iter_mut()
             .find(|p| p.access_version == settle.player_id)
         {
-            Some(p) => p,
-            None => return Err(ProcessError::InvalidSettlePlayerId)?,
-        };
+            if settle.amount > 0 {
+                pays.push((player.addr, settle.amount));
+            }
+        } else {
+            if settle.player_id != 0 {
+                return Err(ProcessError::InvalidSettlePlayerId)?;
+            }
+        }
 
-        pays.push((player.addr, settle.amount));
         if settle.eject {
             game_state
                 .players
