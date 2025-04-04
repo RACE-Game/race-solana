@@ -76,7 +76,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
     let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
 
-    if game_state.settle_version != params.settle_version {
+    if game_state.settle_version < params.settle_version {
         return Err(ProcessError::InvalidSettleVersion)?;
     }
 
