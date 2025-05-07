@@ -15,6 +15,65 @@ use crate::{
 };
 use spl_token::instruction::close_account;
 
+use super::misc::validate_receiver;
+
+#[inline(never)]
+fn claim_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
+    game_state: &'c GameState,
+    owner_account: &'a AccountInfo<'b>,
+    game_account: &'a AccountInfo<'b>,
+    pda_account: &'a AccountInfo<'b>,
+    bump_seed: u8,
+    token_program: &'a AccountInfo<'b>,
+    account_iter: &'c mut I,
+) -> ProgramResult {
+    for bonus in game_state.bonuses.iter() {
+
+        let bonus_account = next_account_info(account_iter)?;
+        let receiver_account = next_account_info(account_iter)?;
+
+        if bonus.stake_addr.ne(&bonus_account.key) {
+            return Err(ProcessError::InvalidAwardIdentifier)?;
+        }
+
+        // Skip if bonus is already dispatched
+        if bonus_account.lamports() == 0 {
+            continue;
+        }
+
+        validate_receiver(&owner_account.key, &bonus.token_addr, receiver_account.key)?;
+
+        general_transfer(
+            bonus_account,
+            owner_account,
+            &bonus.token_addr,
+            None,
+            pda_account,
+            &[&[game_account.key.as_ref(), &[bump_seed]]],
+            token_program,
+        )?;
+
+        let close_ix = close_account(
+            token_program.key,
+            bonus_account.key,
+            receiver_account.key,
+            pda_account.key,
+            &[pda_account.key],
+        )?;
+
+        invoke_signed(
+            &close_ix,
+            &[
+                bonus_account.clone(),
+                owner_account.clone(),
+                pda_account.clone(),
+            ],
+            &[&[game_account.key.as_ref(), &[bump_seed]]],
+        )?;
+    }
+    Ok(())
+}
+
 #[inline(never)]
 pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let account_iter = &mut accounts.iter();
@@ -75,6 +134,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
             &[&[game_account.key.as_ref(), &[bump_seed]]],
         )?;
     }
+
+    // Claim all available bonuses
+    claim_bonuses(&game_state, owner_account, game_account, pda_account, bump_seed, token_program, account_iter)?;
 
     // Close game account and transfer the SOL to the owner
     **owner_account.lamports.borrow_mut() = owner_account

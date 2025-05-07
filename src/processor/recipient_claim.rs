@@ -9,6 +9,7 @@ use solana_program::{
 use spl_token::state::Account;
 
 use crate::{
+    error::ProcessError,
     processor::misc::general_transfer,
     state::{RecipientSlot, RecipientSlotOwner, RecipientState},
 };
@@ -39,7 +40,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
     let payer = next_account_info(accounts_iter)?;
     let recipient_account = next_account_info(accounts_iter)?;
-    let pda_account = next_account_info(accounts_iter)?;
     let token_program = next_account_info(accounts_iter)?;
     let _system_program = next_account_info(accounts_iter)?;
     let mut recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
@@ -49,6 +49,14 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     for slot in recipient_state.slots.iter_mut() {
+        let pda_account = next_account_info(accounts_iter)?;
+
+        let (pda, _bump) = Pubkey::find_program_address(&[recipient_account.key.as_ref(), &[slot.id]], program_id);
+
+        if pda.ne(&pda_account.key) {
+            return Err(ProcessError::InvalidPDA)?;
+        }
+
         // The slot stake account
         let slot_stake_account = next_account_info(accounts_iter)?;
         let receiver = next_account_info(accounts_iter)?;

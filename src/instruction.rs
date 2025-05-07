@@ -30,6 +30,7 @@ pub enum RaceInstruction {
     /// 3. `[]` PDA account.
     /// 4. `[]` The account to receive tokens
     /// 5. `[]` Token program.
+    /// Rest are the bonus stake account and receiver(owner)'s ATA
     CloseGameAccount,
 
     /// # [2] Create an on-chain "lobby" for game registration
@@ -159,10 +160,12 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The fee payer
     /// 1. `[writable]` The recipient account
-    /// 2. `[]` The PDA account as the owner of stake accounts
-    /// 3. `[]` The token program
-    /// 4. `[]` The system program
-    /// Rest. `[]` The stake account followed by the corresponding ATA to receive tokens
+    /// 2. `[]` The token program
+    /// 3. `[]` The system program
+    /// Rest are stake account to pays and ATA to receive
+    /// `[]` The PDA account as the owner of the stake account
+    /// `[writable]` The stake account
+    /// `[writable]` ATA to receive tokens
     RecipientClaim,
 
     /// # [15] Deposit tokens to a game
