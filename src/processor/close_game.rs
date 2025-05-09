@@ -33,7 +33,7 @@ fn claim_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
         let receiver_account = next_account_info(account_iter)?;
 
         if bonus.stake_addr.ne(&bonus_account.key) {
-            return Err(ProcessError::InvalidAwardIdentifier)?;
+            return Err(ProcessError::InvalidStakeAccount)?;
         }
 
         // Skip if bonus is already dispatched
@@ -45,7 +45,7 @@ fn claim_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
 
         general_transfer(
             bonus_account,
-            owner_account,
+            receiver_account,
             &bonus.token_addr,
             None,
             pda_account,
@@ -56,7 +56,7 @@ fn claim_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
         let close_ix = close_account(
             token_program.key,
             bonus_account.key,
-            receiver_account.key,
+            owner_account.key,
             pda_account.key,
             &[pda_account.key],
         )?;
