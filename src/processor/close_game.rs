@@ -86,6 +86,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let pda_account = next_account_info(account_iter)?;
     let receiver_account = next_account_info(account_iter)?;
     let token_program = next_account_info(account_iter)?;
+    let _system_program = next_account_info(account_iter)?;
 
     let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
     // check is_initialized?

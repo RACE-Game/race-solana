@@ -21,15 +21,16 @@ pub enum RaceInstruction {
     /// 7. `[]` The system program
     CreateGameAccount { params: CreateGameAccountParams },
 
-    /// # [1] Close a new game
+    /// # [1] Close a game
     ///
     /// Accounts expected:
     /// 0. `[signer]` The account of game owner
     /// 1. `[writable]` The account of game account
     /// 2. `[writable]` The stake account of game
-    /// 3. `[]` PDA account.
+    /// 3. `[]` PDA account
     /// 4. `[]` The account to receive tokens
-    /// 5. `[]` Token program.
+    /// 5. `[]` Token program
+    /// 6. `[]` The system program
     /// Rest are the bonus stake account and receiver(owner)'s ATA
     CloseGameAccount,
 
