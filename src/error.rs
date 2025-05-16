@@ -230,6 +230,18 @@ pub enum ProcessError {
     /// 38
     #[error("Server account not available")]
     ServerAccountNotAvailable,
+
+    /// 39
+    #[error("Empty recipient slot shares")]
+    EmptyRecipientSlotShares,
+
+    /// 40
+    #[error("Duplicated recipient slot token")]
+    DuplicatedRecipientSlotToken,
+
+    /// 41
+    #[error("Invalid recipient address")]
+    InvalidRecipientAddress,
 }
 
 impl From<ProcessError> for ProgramError {

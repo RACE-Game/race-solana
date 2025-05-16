@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
@@ -14,7 +15,7 @@ use crate::{
     state::{RecipientSlot, RecipientSlotOwner, RecipientState},
 };
 
-use super::misc::{is_native_mint, validate_receiver};
+use super::misc::{is_native_mint, pack_state_to_account, validate_receiver};
 
 fn claim_from_slot(stake_amount: u64, slot: &mut RecipientSlot, owner: &Pubkey) -> u64 {
     let total_weights: u16 = slot.shares.iter().map(|s| s.weights).sum();
@@ -41,8 +42,8 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let payer = next_account_info(accounts_iter)?;
     let recipient_account = next_account_info(accounts_iter)?;
     let token_program = next_account_info(accounts_iter)?;
-    let _system_program = next_account_info(accounts_iter)?;
-    let mut recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
+    let system_program = next_account_info(accounts_iter)?;
+    let mut recipient_state = RecipientState::try_from_slice(&recipient_account.try_borrow_data()?)?;
 
     if !payer.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
@@ -97,10 +98,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         }
     }
 
-    RecipientState::pack(
-        recipient_state,
-        &mut recipient_account.try_borrow_mut_data()?,
-    )?;
+    pack_state_to_account(&recipient_state, &recipient_account, &payer, &system_program)?;
 
     Ok(())
 }

@@ -63,7 +63,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
 
     msg!("Deserializing recipient state, data len: {}", recipient_account.data_len());
 
-    let recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
+    let recipient_state = RecipientState::try_from_slice(&recipient_account.try_borrow_data()?)?;
 
     if !recipient_state.is_initialized {
         return Err(ProgramError::UninitializedAccount);

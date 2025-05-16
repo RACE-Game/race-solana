@@ -1,6 +1,9 @@
-use solana_program::{account_info::{AccountInfo, next_account_info}, entrypoint::ProgramResult, pubkey::Pubkey, program_pack::Pack, program_error::ProgramError};
+use borsh::BorshDeserialize;
+use solana_program::{account_info::{AccountInfo, next_account_info}, entrypoint::ProgramResult, pubkey::Pubkey, program_error::ProgramError};
 
 use crate::{types::AssignRecipientParams, state::{RecipientState, RecipientSlotOwner}};
+
+use super::misc::pack_state_to_account;
 
 #[inline(never)]
 pub fn process(
@@ -16,12 +19,13 @@ pub fn process(
     let payer = next_account_info(accounts_iter)?;
     let recipient_account = next_account_info(accounts_iter)?;
     let assign_account = next_account_info(accounts_iter)?;
+    let system_program = next_account_info(accounts_iter)?;
 
     if !payer.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let mut recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
+    let mut recipient_state = RecipientState::try_from_slice(&recipient_account.try_borrow_data()?)?;
 
     for slot in recipient_state.slots.iter_mut() {
         for share in slot.shares.iter_mut() {
@@ -38,7 +42,7 @@ pub fn process(
         }
     }
 
-    RecipientState::pack(recipient_state, &mut recipient_account.try_borrow_mut_data()?)?;
+    pack_state_to_account(&recipient_state, &recipient_account, &payer, &system_program)?;
 
     Ok(())
 }

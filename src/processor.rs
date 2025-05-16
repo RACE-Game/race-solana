@@ -20,6 +20,7 @@ mod recipient_claim;
 mod deposit;
 mod attach_bonus;
 mod reject_deposits;
+mod add_recipient_slot;
 
 pub fn process(
     program_id: &Pubkey,
@@ -102,6 +103,10 @@ pub fn process(
         RaceInstruction::RejectDeposits { params } => {
             msg!("Reject Deposits");
             reject_deposits::process(program_id, accounts, params)
+        }
+        RaceInstruction::AddRecipientSlot { params } => {
+            msg!("Add recipient slot");
+            add_recipient_slot::process(program_id, accounts, params)
         }
     };
 

@@ -364,7 +364,7 @@ fn handle_transfer<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     token_program: &'a AccountInfo<'b>,
     account_iter: &'c mut I,
 ) -> ProgramResult {
-    let recipient_state = RecipientState::unpack(&recipient_account.try_borrow_data()?)?;
+    let recipient_state = RecipientState::try_from_slice(&recipient_account.try_borrow_data()?)?;
 
     // Handle commission transfers
     let slot_stake_account = next_account_info(account_iter)?;

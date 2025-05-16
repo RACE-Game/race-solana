@@ -1,8 +1,6 @@
-use crate::{constants::RECIPIENT_ACCOUNT_LEN, error::ProcessError};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
-    program_error::ProgramError,
-    program_pack::{IsInitialized, Pack, Sealed},
+    program_pack::IsInitialized,
     pubkey::Pubkey,
 };
 
@@ -51,19 +49,5 @@ pub struct RecipientState {
 impl IsInitialized for RecipientState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
-    }
-}
-
-impl Sealed for RecipientState {}
-
-impl Pack for RecipientState {
-    const LEN: usize = RECIPIENT_ACCOUNT_LEN;
-
-    fn pack_into_slice(&self, mut dst: &mut [u8]) {
-        self.serialize(&mut dst).unwrap();
-    }
-
-    fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
-        Ok(Self::deserialize(&mut src).map_err(|_| ProcessError::RecipientDeserializationFailed)?)
     }
 }

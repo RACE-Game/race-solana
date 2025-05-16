@@ -13,7 +13,7 @@ use spl_token::{
 };
 
 use crate::{
-    constants::RECIPIENT_ACCOUNT_LEN, error::ProcessError, processor::misc::is_native_mint,
+    error::ProcessError, processor::misc::{is_native_mint, pack_state_to_account},
     state::{RecipientSlot, RecipientState}, types::CreateRecipientParams,
 };
 
@@ -28,6 +28,7 @@ pub fn process(
     let cap_account = next_account_info(accounts_iter)?;
     let recipient_account = next_account_info(accounts_iter)?;
     let token_program = next_account_info(accounts_iter)?;
+    let system_program = next_account_info(accounts_iter)?;
 
     if !payer.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
@@ -99,14 +100,7 @@ pub fn process(
         slots,
     };
 
-    if recipient_account.data_len() < RECIPIENT_ACCOUNT_LEN {
-        return Err(ProgramError::AccountDataTooSmall);
-    }
-
-    RecipientState::pack(
-        recipient_state,
-        &mut recipient_account.try_borrow_mut_data()?,
-    )?;
+    pack_state_to_account(&recipient_state, &recipient_account, &payer, system_program)?;
 
     msg!("Created recipient account: {:?}", recipient_account.key);
 

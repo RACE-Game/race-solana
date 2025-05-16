@@ -1,7 +1,5 @@
 use crate::types::{
-    AssignRecipientParams, AttachBonusParams, CreateGameAccountParams, CreatePlayerProfileParams,
-    CreateRecipientParams, CreateRegistrationParams, DepositParams, JoinParams, PublishParams,
-    RegisterServerParams, RejectDepositsParams, ServeParams, SettleParams, VoteParams,
+    AssignRecipientParams, AttachBonusParams, CreateGameAccountParams, CreatePlayerProfileParams, CreateRecipientParams, CreateRegistrationParams, DepositParams, JoinParams, PublishParams, RecipientSlotInit, RegisterServerParams, RejectDepositsParams, ServeParams, SettleParams, VoteParams
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
@@ -145,7 +143,8 @@ pub enum RaceInstruction {
     /// 1. `[]` The cap account
     /// 2. `[]` The recipient account
     /// 3. `[]` The token program
-    /// 3+n. `[]` The Nth staking account for slots
+    /// 4. `[]` The system program
+    /// 4+n. `[]` The Nth staking account for slots
     CreateRecipient { params: Box<CreateRecipientParams> },
 
     /// # [13] Assign recipient
@@ -154,6 +153,7 @@ pub enum RaceInstruction {
     /// 0. `[signer]` The payer account, should be the cap account of recipient
     /// 1. `[writable]` The recipient account
     /// 2. `[]` The account to assigned as the owner to a slot
+    /// 3. `[]` The system program
     AssignRecipient { params: AssignRecipientParams },
 
     /// # [14] Recipient claim
@@ -204,6 +204,16 @@ pub enum RaceInstruction {
     /// 5. `[]` The system program
     /// Rest. `[]` The receiver for each rejected deposit
     RejectDeposits { params: RejectDepositsParams },
+
+    /// #[18] Add recipient slot
+    ///
+    /// Accounts expected:
+    /// 0. `[signer]` The cap account
+    /// 1. `[writable]` The recipient account
+    /// 2. `[]` The staking account for slots
+    /// 3. `[]` The SPL token program
+    /// 4. `[]` The system program
+    AddRecipientSlot { params: RecipientSlotInit }
 }
 
 impl RaceInstruction {
