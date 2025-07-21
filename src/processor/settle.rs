@@ -92,7 +92,7 @@ pub fn process(
         return Err(ProcessError::InvalidPDA)?;
     }
 
-    msg!("Handle settles: {:?}", settles);
+    // msg!("Handle settles: {:?}", settles);
 
     handle_settles(
         &mut game_state,
@@ -106,7 +106,7 @@ pub fn process(
     )?;
 
     if let Some(transfer) = transfer {
-        msg!("Handle transfer: {:?}", transfer);
+        // msg!("Handle transfer: {:?}", transfer);
 
         handle_transfer(
             &game_state,
@@ -121,7 +121,7 @@ pub fn process(
         )?;
     }
 
-    msg!("Handle bonuses: {:?}", awards);
+    // msg!("Handle bonuses: {:?}", awards);
     handle_bonuses(
         &mut game_state,
         *awards,
@@ -133,14 +133,14 @@ pub fn process(
         &mut account_iter,
     )?;
 
-    msg!("Handle accepted deposits: {:?}", accept_deposits);
+    // msg!("Handle accepted deposits: {:?}", accept_deposits);
     for accept_deposit in *accept_deposits {
         if let Some(d) = game_state
             .deposits
             .iter_mut()
             .find(|d| d.access_version == accept_deposit)
         {
-            msg!("Mark accepted deposit: {}", d.access_version);
+            // msg!("Mark accepted deposit: {}", d.access_version);
             d.status = DepositStatus::Accepted;
         }
     }
@@ -150,13 +150,13 @@ pub fn process(
         .retain(|d| matches!(d.status, DepositStatus::Pending | DepositStatus::Rejected));
 
     validate_balance(&game_state, &stake_account)?;
-    msg!("Balance validation passed");
+    // msg!("Balance validation passed");
 
-    msg!("Bump settle version to {}", next_settle_version);
+    // msg!("Bump settle version to {}", next_settle_version);
     game_state.settle_version = next_settle_version;
     game_state.checkpoint = *checkpoint;
     if let Some(entry_lock) = entry_lock {
-        msg!("Update entry lock: {:?}", entry_lock);
+        // msg!("Update entry lock: {:?}", entry_lock);
         game_state.entry_lock = entry_lock;
     }
 

@@ -157,15 +157,10 @@ pub fn pack_state_to_account<'a, T: BorshSerialize>(
     let new_data_len = new_data.len();
     let old_data_len = account.data_len();
 
-    msg!("Current data len: {}", old_data_len);
-    msg!("New data len: {}", new_data_len);
+    msg!("Account data size: {} -> {}", old_data_len, new_data_len);
 
-    if new_data_len != account.data_len() {
-        msg!(
-            "Realloc account data, old size: {}, new size: {}",
-            account.data_len(),
-            new_data_len
-        );
+    if new_data_len != old_data_len {
+        msg!("Realloc account data");
         account.realloc(new_data_len, false)?;
 
         // When the new data is bigger than the old data, we do realloc.
@@ -188,7 +183,6 @@ pub fn pack_state_to_account<'a, T: BorshSerialize>(
             }
         }
     }
-
     account.try_borrow_mut_data()?.copy_from_slice(&new_data);
 
     Ok(())
