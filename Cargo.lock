@@ -443,9 +443,9 @@ dependencies = [
 
 [[package]]
 name = "bytemuck"
-version = "1.20.0"
+version = "1.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b37c88a63ffd85d15b406896cc343916d7cf57838a847b3a6f2ca5d39a5695a"
+checksum = "5c76a5792e44e4abe34d3abf15636779261d45a7450612059293d1d2cfc63422"
 dependencies = [
  "bytemuck_derive",
 ]
@@ -1297,7 +1297,9 @@ name = "race-solana"
 version = "0.2.6"
 dependencies = [
  "anyhow",
+ "arrayref",
  "borsh 1.5.3",
+ "bytemuck",
  "mpl-token-metadata",
  "solana-program",
  "spl-associated-token-account",

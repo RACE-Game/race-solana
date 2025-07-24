@@ -5,3 +5,4 @@ mod state;
 mod types;
 mod instruction;
 mod constants;
+mod ser;
