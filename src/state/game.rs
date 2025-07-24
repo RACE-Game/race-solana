@@ -82,7 +82,6 @@ pub struct PlayerDeposit {
     pub status: DepositStatus,
 }
 
-
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug)]
 pub struct Vote {
@@ -126,7 +125,7 @@ pub struct GameState {
     // game size
     pub max_players: u16,
     // game players
-    pub players: Box<Vec<PlayerJoin>>,
+    pub players: Vec<PlayerJoin>,
     // deposits
     pub deposits: Vec<PlayerDeposit>,
     // game servers (max: 10)

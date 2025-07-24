@@ -3,12 +3,18 @@ use solana_program::pubkey::Pubkey;
 use std::io;
 use std::mem;
 
-trait Writable {
+// pub enum UpdatableValue<T> {
+//     Origin { start: u16, len: u16 },
+//     NewValue(Vec<u8>),
+// }
+
+pub trait Writable {
     fn size(&self) -> usize;
     fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize;
 }
 
-#[allow(unused)]
+#[cfg_attr(test, derive(BorshSerialize))]
+#[derive(Debug)]
 pub enum CursorType {
     Bool,
     U8,
@@ -17,12 +23,34 @@ pub enum CursorType {
     Usize,
     U64,
     String,
-    Struct(Vec<CursorType>),
-    Vec(Box<CursorType>),
-    Option(Box<CursorType>),
+    Struct(Vec<CursorType>), // the fields
+    Vec(Box<CursorType>),    // the items
+    StaticVec,               // items with fixed size
+    Option(Box<CursorType>), // the inner type
+    Enum(Vec<CursorType>),   // the variants
     Pubkey,
+    Empty,
 }
 
+impl CursorType {
+    pub fn mk_vec(item_type: CursorType) -> Self {
+        Self::Vec(Box::new(item_type))
+    }
+
+    pub fn mk_option(inner_type: CursorType) -> Self {
+        Self::Option(Box::new(inner_type))
+    }
+
+    pub fn mk_struct(field_types: Vec<CursorType>) -> Self {
+        Self::Struct(field_types)
+    }
+
+    pub fn mk_enum(variants_types: Vec<CursorType>) -> Self {
+        Self::Enum(variants_types)
+    }
+}
+
+#[cfg_attr(test, derive(BorshSerialize))]
 #[derive(Debug)]
 pub enum Cursor {
     Bool(PrimitiveCursor<bool>),
@@ -34,12 +62,16 @@ pub enum Cursor {
     String(StringCursor),
     Struct(StructCursor),
     Vec(VecCursor),
+    StaticVec(StaticVecCursor),
     Option(OptionCursor),
+    Enum(EnumCursor),
     Pubkey(PubkeyCursor),
+    Empty(EmptyCursor),
 }
 
 impl Cursor {
-    fn new(cursor_type: &CursorType, src: &[u8], offset: usize) -> (Self, usize) {
+    pub fn new(cursor_type: &CursorType, src: &[u8], offset: usize) -> (Self, usize) {
+        println!("cursor type: {:?}, offset: {}", cursor_type, offset);
         match cursor_type {
             CursorType::Bool => {
                 let (c, offset) = PrimitiveCursor::<bool>::new(src, offset);
@@ -77,20 +109,30 @@ impl Cursor {
                 let (c, offset) = VecCursor::new(&item_type, src, offset);
                 (Cursor::Vec(c), offset)
             }
+            CursorType::StaticVec => {
+                let (c, offset) = StaticVecCursor::new(src, offset);
+                (Cursor::StaticVec(c), offset)
+            }
             CursorType::Option(inner_type) => {
                 let (c, offset) = OptionCursor::new(&inner_type, src, offset);
                 (Cursor::Option(c), offset)
+            }
+            CursorType::Enum(variants) => {
+                let (c, offset) = EnumCursor::new(&variants, src, offset);
+                (Cursor::Enum(c), offset)
             }
             CursorType::Pubkey => {
                 let (c, offset) = PubkeyCursor::new(src, offset);
                 (Cursor::Pubkey(c), offset)
             }
+            CursorType::Empty => {
+                let c = EmptyCursor {};
+                (Cursor::Empty(c), 0)
+            }
         }
     }
-}
 
-impl Cursor {
-    fn size(&self) -> usize {
+    pub fn size(&self) -> usize {
         match self {
             Cursor::Bool(c) => c.size(),
             Cursor::U8(c) => c.size(),
@@ -101,12 +143,15 @@ impl Cursor {
             Cursor::String(c) => c.size(),
             Cursor::Struct(c) => c.size(),
             Cursor::Vec(c) => c.size(),
+            Cursor::StaticVec(c) => c.size(),
             Cursor::Option(c) => c.size(),
+            Cursor::Enum(c) => c.size(),
             Cursor::Pubkey(c) => c.size(),
+            Cursor::Empty(c) => c.size(),
         }
     }
 
-    fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize {
+    pub fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize {
         println!("write: {:?} at offset: {}", self, offset);
         match self {
             Cursor::Bool(c) => c.write(src, dest, offset),
@@ -118,25 +163,30 @@ impl Cursor {
             Cursor::String(c) => c.write(src, dest, offset),
             Cursor::Struct(c) => c.write(src, dest, offset),
             Cursor::Vec(c) => c.write(src, dest, offset),
+            Cursor::StaticVec(c) => c.write(src, dest, offset),
             Cursor::Option(c) => c.write(src, dest, offset),
+            Cursor::Enum(c) => c.write(src, dest, offset),
             Cursor::Pubkey(c) => c.write(src, dest, offset),
+            Cursor::Empty(c) => c.write(src, dest, offset),
         }
     }
 }
 
 /// A cursor refers to a primitive type
 /// The size of primitive types don't change
+#[cfg_attr(test, derive(BorshSerialize))]
 #[derive(Debug)]
 pub struct PrimitiveCursor<T>
 where
-    T: BorshDeserialize + BorshSerialize,
+    T: BorshDeserialize + BorshSerialize + std::fmt::Debug,
 {
+    offset: u16,
     value: T,
 }
 
 impl<T> Writable for PrimitiveCursor<T>
 where
-    T: BorshDeserialize + BorshSerialize,
+    T: BorshDeserialize + BorshSerialize + std::fmt::Debug,
 {
     fn size(&self) -> usize {
         mem::size_of::<T>()
@@ -153,13 +203,14 @@ where
 
 impl<T> PrimitiveCursor<T>
 where
-    T: BorshDeserialize + BorshSerialize,
+    T: BorshDeserialize + BorshSerialize + std::fmt::Debug,
 {
     pub fn new(data: &[u8], offset: usize) -> (Self, usize) {
         let len = mem::size_of::<T>();
         let buf = &data[offset..(offset + len)];
         let value = T::try_from_slice(&buf).unwrap();
-        (Self { value }, len)
+        println!("Primitive value: {:?}", value);
+        (Self { offset: offset as u16, value }, len)
     }
     pub fn get(&self) -> &T {
         &self.value
@@ -169,12 +220,14 @@ where
     }
 }
 
+#[cfg_attr(test, derive(BorshSerialize))]
 #[derive(Debug)]
 pub enum StringValue {
-    Origin(usize, u32), // the offset and the length of String(with head)
+    Origin(u16, u32), // the offset and the length of String(with head)
     NewValue(String),
 }
 
+#[cfg_attr(test, derive(BorshSerialize))]
 #[derive(Debug)]
 pub struct StringCursor {
     value: StringValue,
@@ -191,9 +244,10 @@ impl Writable for StringCursor {
     fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize {
         match self.value {
             StringValue::Origin(origin_offset, origin_len) => {
-                let mut buf = vec![0; origin_len as usize];
-                buf.copy_from_slice(&src[origin_offset..(origin_offset + origin_len as usize)]);
-                dest[offset..(offset + origin_len as usize)].copy_from_slice(&buf);
+                let origin_offset = origin_offset as usize;
+                dest[offset..(offset+origin_len as usize)].copy_from_slice(
+                    &src[(origin_offset as usize)..(origin_offset as usize+origin_len as usize)]
+                );
                 origin_len as usize
             }
             StringValue::NewValue(ref s) => {
@@ -210,17 +264,18 @@ impl Writable for StringCursor {
 impl StringCursor {
     fn new(data: &[u8], offset: usize) -> (Self, usize) {
         let len = u32::try_from_slice(&data[offset..(offset + 4)]).unwrap();
-        let value = StringValue::Origin(offset, len + 4);
+        let value = StringValue::Origin(offset as u16, len + 4);
         (Self { value }, len as usize + 4)
     }
 
-    fn get<'a>(&'a self, data: &'a [u8]) -> &'a str {
+    pub fn get<'a>(&'a self, data: &'a [u8]) -> &'a str {
         match self.value {
             StringValue::Origin(origin_offset, origin_len) => {
+                let origin_offset = origin_offset as usize;
                 let buf = &data[(origin_offset + 4)..(origin_offset + origin_len as usize)];
                 std::str::from_utf8(buf).unwrap()
             }
-            StringValue::NewValue(ref s) => panic!("String is updated"),
+            StringValue::NewValue(_) => panic!("String is updated"),
         }
     }
 
@@ -234,6 +289,7 @@ impl StringCursor {
 /// a list of cursors.  Since the size of struct might change,
 /// we have a extra buffer for saving bytes which doesn't fit in the
 /// original buffer.
+#[cfg_attr(test, derive(BorshSerialize))]
 #[derive(Debug)]
 pub struct StructCursor {
     cursors: Vec<Cursor>,
@@ -252,7 +308,9 @@ impl Writable for StructCursor {
         let mut len = 0;
         for cursor in self.cursors {
             len += cursor.write(src, dest, offset + len);
+            println!("New len: {}", len);
         }
+        println!("Struct size: {}", len);
         len
     }
 }
@@ -270,16 +328,16 @@ impl StructCursor {
         (Self { cursors }, total_len)
     }
 
-    fn get_cursor(&self, cursor_index: usize) -> &Cursor {
-        if let Some(cursor) = self.cursors.get(cursor_index) {
+    pub fn get_cursor(&self, cursor_index: u8) -> &Cursor {
+        if let Some(cursor) = self.cursors.get(cursor_index as usize) {
             cursor
         } else {
             panic!("Index access out of bound");
         }
     }
 
-    fn get_cursor_mut(&mut self, cursor_index: usize) -> &mut Cursor {
-        if let Some(cursor) = self.cursors.get_mut(cursor_index) {
+    pub fn get_cursor_mut(&mut self, cursor_index: u8) -> &mut Cursor {
+        if let Some(cursor) = self.cursors.get_mut(cursor_index as usize) {
             println!("cursor: {:?}", cursor);
             cursor
         } else {
@@ -290,9 +348,10 @@ impl StructCursor {
 
 /// We use u8 here to save some bytes
 /// since we don't have a list longer than 256.
+#[cfg_attr(test, derive(BorshSerialize))]
 #[derive(Debug)]
-struct VecCursor {
-    offset: usize,
+pub struct VecCursor {
+    offset: u16,
     cursors: Vec<Cursor>,
     add: Vec<Vec<u8>>, // the new items to insert
 }
@@ -311,7 +370,7 @@ impl Writable for VecCursor {
 
     fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize {
         let mut len = 0;
-        let buf = &mut dest[offset..(offset + 4)];
+        let buf = &mut dest[(offset as usize)..(offset as usize + 4)];
         let mut w = io::Cursor::new(buf);
         println!("write len: {}", self.cursors.len() + self.add.len());
         borsh::to_writer(&mut w, &(self.cursors.len() as u32 + self.add.len() as u32)).unwrap();
@@ -320,7 +379,7 @@ impl Writable for VecCursor {
         }
         for add in self.add {
             let add_len = add.len();
-            dest[(offset+len+4)..(offset+len+add_len+4)].copy_from_slice(&add);
+            dest[(offset + len + 4)..(offset + len + add_len + 4)].copy_from_slice(&add);
             len += add_len;
         }
 
@@ -331,6 +390,7 @@ impl Writable for VecCursor {
 impl VecCursor {
     fn new(item_type: &CursorType, data: &[u8], offset: usize) -> (Self, usize) {
         let mut cnt = u32::try_from_slice(&data[offset..(offset + 4)]).unwrap();
+        println!("vec cursor items count: {}", cnt);
         let mut total_len = 0;
         let mut cursors = Vec::with_capacity(cnt as usize);
         while cnt > 0 {
@@ -341,11 +401,11 @@ impl VecCursor {
         }
         (
             Self {
-                offset,
+                offset: offset as u16,
                 cursors,
                 add: Default::default(),
             },
-            total_len,
+            4 + total_len,
         )
     }
 
@@ -357,7 +417,7 @@ impl VecCursor {
         self.cursors.remove(index);
     }
 
-    fn get_cursor(&self, cursor_index: usize) -> &Cursor {
+    pub fn get_cursor(&self, cursor_index: usize) -> &Cursor {
         if let Some(cursor) = self.cursors.get(cursor_index) {
             cursor
         } else {
@@ -365,7 +425,7 @@ impl VecCursor {
         }
     }
 
-    fn get_cursor_mut(&mut self, cursor_index: usize) -> &mut Cursor {
+    pub fn get_cursor_mut(&mut self, cursor_index: usize) -> &mut Cursor {
         if let Some(cursor) = self.cursors.get_mut(cursor_index) {
             println!("cursor: {:?}", cursor);
             cursor
@@ -375,9 +435,66 @@ impl VecCursor {
     }
 }
 
+#[cfg_attr(test, derive(BorshSerialize))]
 #[derive(Debug)]
-struct OptionCursor {
-    offset: usize,
+pub enum StaticVecValue {
+    Origin(u16, u16),  // offset, length
+    NewValue(Vec<u8>),
+}
+
+#[cfg_attr(test, derive(BorshSerialize))]
+#[derive(Debug)]
+pub struct StaticVecCursor {
+    value: StaticVecValue,
+}
+
+impl Writable for StaticVecCursor {
+    fn size(&self) -> usize {
+        match &self.value {
+            StaticVecValue::Origin(_, len) => 4 + *len as usize,
+            StaticVecValue::NewValue(v) => 4 + v.len(),
+        }
+    }
+
+    fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize {
+        match self.value {
+            StaticVecValue::Origin(origin_offset, len) => {
+                let origin_offset = origin_offset as usize;
+                let len = len as usize;
+                dest[offset..(offset + 4 + len)]
+                    .copy_from_slice(&src[origin_offset..(origin_offset + 4 + len)]);
+                len
+            }
+            StaticVecValue::NewValue(v) => {
+                let len = v.len();
+                let mut w = io::Cursor::new(&mut dest[offset..(offset + 4 + len)]);
+                borsh::to_writer(&mut w, &v).unwrap();
+                len
+            }
+        }
+    }
+}
+
+impl StaticVecCursor {
+    pub fn new(data: &[u8], offset: usize) -> (Self, usize) {
+        let len = u32::try_from_slice(&data[offset..(offset + 4)]).unwrap();
+        (
+            Self {
+                value: StaticVecValue::Origin(offset as u16, len as u16),
+            },
+            len as usize + 4,
+        )
+    }
+
+    pub fn set(&mut self, value: Vec<u8>) {
+        self.value = StaticVecValue::NewValue(value);
+    }
+}
+
+#[cfg_attr(test, derive(BorshSerialize))]
+#[derive(Debug)]
+pub struct OptionCursor {
+    offset: u16,
     inner: Option<Box<Cursor>>,
 }
 
@@ -392,7 +509,7 @@ impl Writable for OptionCursor {
 
     fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize {
         if let Some(inner_cursor) = self.inner {
-            dest[offset] = 1;
+            dest[offset as usize] = 1;
             inner_cursor.write(src, dest, offset + 1) + 1
         } else {
             dest[offset] = 0;
@@ -406,7 +523,7 @@ impl OptionCursor {
         if data[offset] == 0 {
             (
                 Self {
-                    offset,
+                    offset: offset as u16,
                     inner: None,
                 },
                 1,
@@ -415,7 +532,7 @@ impl OptionCursor {
             let (c, len) = Cursor::new(inner_type, data, offset + 1);
             (
                 Self {
-                    offset,
+                    offset: offset as u16,
                     inner: Some(Box::new(c)),
                 },
                 1 + len,
@@ -425,7 +542,7 @@ impl OptionCursor {
 
     // TODO: remove a inner cursor or create a inner cursor
 
-    fn get_inner(&self) -> Option<&Cursor> {
+    pub fn get_inner(&self) -> Option<&Cursor> {
         if let Some(c) = self.inner.as_ref() {
             Some(c)
         } else {
@@ -433,7 +550,7 @@ impl OptionCursor {
         }
     }
 
-    fn get_inner_mut(&mut self) -> Option<&mut Cursor> {
+    pub fn get_inner_mut(&mut self) -> Option<&mut Cursor> {
         if let Some(c) = self.inner.as_mut() {
             Some(c)
         } else {
@@ -442,9 +559,76 @@ impl OptionCursor {
     }
 }
 
+#[cfg_attr(test, derive(BorshSerialize))]
+#[derive(Debug)]
+pub enum EnumValue {
+    Origin(u16),        // length
+    NewValue(Vec<u8>),
+}
+
+#[cfg_attr(test, derive(BorshSerialize))]
+#[derive(Debug)]
+pub struct EnumCursor {
+    offset: u16,
+    value: EnumValue,
+}
+
+impl Writable for EnumCursor {
+    fn size(&self) -> usize {
+        match &self.value {
+            EnumValue::Origin(len) => *len as usize,
+            EnumValue::NewValue(v) => v.len(),
+        }
+    }
+
+    fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize {
+        match self.value {
+            EnumValue::Origin(len) => {
+                let len = len as usize;
+                dest[offset..(offset + len)]
+                    .copy_from_slice(&src[(self.offset as usize)..(self.offset as usize + len as usize)]);
+                len
+            }
+            EnumValue::NewValue(v) => {
+                let len = v.len();
+                dest[offset..(offset + len)].copy_from_slice(&v);
+                len
+            }
+        }
+    }
+}
+
+impl EnumCursor {
+    fn new(variants: &[CursorType], data: &[u8], offset: usize) -> (Self, usize) {
+        let descriminator = data[offset];
+        let cursor_type = variants.get(descriminator as usize).unwrap();
+        let (_, inner_size) = Cursor::new(cursor_type, data, offset + 1);
+        (
+            Self {
+                offset: offset as u16,
+                value: EnumValue::Origin(inner_size as u16 + 1),
+            },
+            inner_size + 1,
+        )
+    }
+    pub fn get<T: BorshDeserialize>(&self, data: &[u8]) -> T {
+        match &self.value {
+            EnumValue::Origin(len) => {
+                T::try_from_slice(&data[(self.offset as usize)..(self.offset as usize + (*len) as usize)]).unwrap()
+            }
+            EnumValue::NewValue(_) => panic!("value is already updated"),
+        }
+    }
+    pub fn set<T: BorshSerialize>(&mut self, value: &T) {
+        let v = borsh::to_vec(value).unwrap();
+        self.value = EnumValue::NewValue(v);
+    }
+}
+
+#[cfg_attr(test, derive(BorshSerialize, BorshDeserialize))]
 #[derive(Debug)]
 pub struct PubkeyCursor {
-    offset: usize,
+    offset: u16,
     new_value: Option<Pubkey>,
 }
 
@@ -458,7 +642,7 @@ impl Writable for PubkeyCursor {
             let mut w = io::Cursor::new(&mut dest[offset..(offset + 32)]);
             borsh::to_writer(&mut w, &value).unwrap();
         } else {
-            dest[offset..(offset + 32)].copy_from_slice(&src[self.offset..(self.offset + 32)])
+            dest[offset..(offset + 32)].copy_from_slice(&src[(self.offset as usize)..(self.offset as usize + 32)])
         }
         32
     }
@@ -466,21 +650,45 @@ impl Writable for PubkeyCursor {
 
 impl PubkeyCursor {
     fn new(data: &[u8], offset: usize) -> (Self, usize) {
+        let pk = Pubkey::try_from_slice(&data[offset..(offset + 32)]);
+        println!("pubkey: {:?}", pk);
         (
             Self {
-                offset,
+                offset: offset as u16,
                 new_value: None,
             },
             32,
         )
     }
 
-    fn get(&self, data: &[u8]) -> Pubkey {
-        Pubkey::try_from_slice(&data[self.offset..(self.offset + 32)]).unwrap()
+    pub fn get(&self, data: &[u8]) -> Pubkey {
+        Pubkey::try_from_slice(&data[(self.offset as usize)..(self.offset as usize + 32)]).unwrap()
     }
 
     fn set(&mut self, value: Pubkey) {
         self.new_value = Some(value);
+    }
+}
+
+#[cfg_attr(test, derive(BorshSerialize))]
+#[derive(Debug)]
+pub struct EmptyCursor {}
+
+impl Writable for EmptyCursor {
+    fn size(&self) -> usize {
+        0
+    }
+
+    fn write(self, _src: &[u8], _dest: &mut [u8], _offset: usize) -> usize {
+        0
+    }
+}
+
+
+#[allow(unused)]
+impl EmptyCursor {
+    fn new(_offset: usize) -> (Self, usize) {
+        (Self { }, 0)
     }
 }
 
@@ -591,7 +799,12 @@ mod tests {
         let offset = sc.write(&v, &mut v2, 0);
         println!("v = {:?}", v2);
         let s2 = StateWithVec::try_from_slice(&v2).unwrap();
-        assert_eq!(s2, StateWithVec { v: vec![1, 2, 3, 12] });
+        assert_eq!(
+            s2,
+            StateWithVec {
+                v: vec![1, 2, 3, 12]
+            }
+        );
         Ok(())
     }
 
@@ -632,6 +845,31 @@ mod tests {
         let offset = sc.write(&v, &mut v2, 0);
         let s2 = StateWithOption::try_from_slice(&v2).unwrap();
         assert_eq!(s2.v.unwrap().x, 42);
+        Ok(())
+    }
+
+    #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq, Eq)]
+    enum EnumState {
+        Foo(u8),
+        Bar(u64),
+    }
+
+    #[test]
+    fn enum_test() -> anyhow::Result<()> {
+        let e = EnumState::Foo(1);
+        let mut v = borsh::to_vec(&e)?;
+        let d = &mut v;
+        let (mut ec, _) = EnumCursor::new(&[CursorType::U8, CursorType::U64], d, 0);
+        let e2: EnumState = ec.get(d);
+        assert_eq!(e2, e);
+        ec.set(&EnumState::Bar(42));
+        let new_size = ec.size();
+        println!("new size: {}", new_size);
+        let mut v2 = vec![0u8; new_size];
+        let offset = ec.write(&v, &mut v2, 0);
+        let e3 = EnumState::try_from_slice(&v2).unwrap();
+        assert_eq!(e3, EnumState::Bar(42));
+
         Ok(())
     }
 }

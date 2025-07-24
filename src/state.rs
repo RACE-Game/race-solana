@@ -1,4 +1,5 @@
 mod game;
+mod game2;
 mod registry;
 mod server;
 mod profile;
