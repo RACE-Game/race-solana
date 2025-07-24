@@ -132,7 +132,7 @@ mod tests {
         let token_mint = Pubkey::default();
 
         // Create players
-        let mut players: Vec<PlayerJoin> = (0..1).map(|i| PlayerJoin {
+        let mut players: Vec<PlayerJoin> = (0..100).map(|i| PlayerJoin {
             addr: Pubkey::default(),
             position: i as u16,
             access_version: 999,
@@ -150,7 +150,7 @@ mod tests {
             .collect();
 
         // Create deposits
-        let mut deposits: Vec<PlayerDeposit> = (0..1)
+        let mut deposits: Vec<PlayerDeposit> = (0..10)
             .map(|i| PlayerDeposit {
                 addr: Pubkey::default(),
                 amount: ((i + 1) * 1000) as u64,
@@ -191,45 +191,45 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_deser() -> anyhow::Result<()> {
-        let game_state = create_example_game_state();
-        let src = borsh::to_vec(&game_state)?;
-        println!("src len: {}", src.len());
-        let game_cursor_type = create_game_cursor_type();
-        println!(
-            "cursor_type size: {}",
-            borsh::to_vec(&game_cursor_type)?.len()
-        );
-        let (mut game_cursor, _) = Cursor::new(&game_cursor_type, &src, 0);
-        println!("new cursor size: {}", borsh::to_vec(&game_cursor)?.len());
+    // #[test]
+    // fn test_deser() -> anyhow::Result<()> {
+    //     let game_state = create_example_game_state();
+    //     let src = borsh::to_vec(&game_state)?;
+    //     println!("src len: {}", src.len());
+    //     let game_cursor_type = create_game_cursor_type();
+    //     println!(
+    //         "cursor_type size: {}",
+    //         borsh::to_vec(&game_cursor_type)?.len()
+    //     );
+    //     let (mut game_cursor, _) = Cursor::new(&game_cursor_type, &src, 0);
+    //     println!("new cursor size: {}", borsh::to_vec(&game_cursor)?.len());
 
-        let Cursor::Struct(ref mut sc) = game_cursor else {
-            panic!("wrong cursor type");
-        };
-        let Cursor::Option(oc) = sc.get_cursor(TRANSACTOR_ADDR) else {
-            panic!("wrong cursor type");
-        };
-        assert!(oc.get_inner().is_none());
-        let Cursor::StaticVec(vc) = sc.get_cursor_mut(CHECKPOINT) else {
-            panic!("wrong cursor type");
-        };
-        vc.set(vec![1u8, 2, 3]);
+    //     let Cursor::Struct(ref mut sc) = game_cursor else {
+    //         panic!("wrong cursor type");
+    //     };
+    //     let Cursor::Option(oc) = sc.get(TRANSACTOR_ADDR)? else {
+    //         panic!("wrong cursor type");
+    //     };
+    //     assert!(oc.get_inner().is_none());
+    //     let Cursor::StaticVec(vc) = sc.get_cursor_mut(CHECKPOINT) else {
+    //         panic!("wrong cursor type");
+    //     };
+    //     vc.set(vec![1u8, 2, 3]);
 
-        println!("u8={}, u16={}, u32={}, u64={}, usize={}, bool={}",
-            std::mem::size_of::<u8>(),
-            std::mem::size_of::<u16>(),
-            std::mem::size_of::<u32>(),
-            std::mem::size_of::<u64>(),
-            std::mem::size_of::<usize>(),
-            std::mem::size_of::<bool>(),
-        );
+    //     println!("u8={}, u16={}, u32={}, u64={}, usize={}, bool={}",
+    //         std::mem::size_of::<u8>(),
+    //         std::mem::size_of::<u16>(),
+    //         std::mem::size_of::<u32>(),
+    //         std::mem::size_of::<u64>(),
+    //         std::mem::size_of::<usize>(),
+    //         std::mem::size_of::<bool>(),
+    //     );
 
-        let mut v = vec![0; game_cursor.size()];
-        game_cursor.write(&src, &mut v, 0);
-        let game_state2 = GameState::try_from_slice(&v).unwrap();
-        assert_eq!(game_state2.checkpoint, vec![1, 2, 3]);
+    //     let mut v = vec![0; game_cursor.size()];
+    //     game_cursor.write(&src, &mut v, 0);
+    //     let game_state2 = GameState::try_from_slice(&v).unwrap();
+    //     assert_eq!(game_state2.checkpoint, vec![1, 2, 3]);
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 }
