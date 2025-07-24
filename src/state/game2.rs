@@ -214,9 +214,7 @@ mod tests {
         let Cursor::StaticVec(vc) = sc.get_cursor_mut(CHECKPOINT) else {
             panic!("wrong cursor type");
         };
-        // vc.set(vec![1, 2, 3]);
-
-
+        vc.set(vec![1u8, 2, 3]);
 
         println!("u8={}, u16={}, u32={}, u64={}, usize={}, bool={}",
             std::mem::size_of::<u8>(),
@@ -230,7 +228,7 @@ mod tests {
         let mut v = vec![0; game_cursor.size()];
         game_cursor.write(&src, &mut v, 0);
         let game_state2 = GameState::try_from_slice(&v).unwrap();
-        //assert_eq!(game_state2.checkpoint, vec![1, 2, 3]);
+        assert_eq!(game_state2.checkpoint, vec![1, 2, 3]);
 
         Ok(())
     }

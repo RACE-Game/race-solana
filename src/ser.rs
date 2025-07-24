@@ -152,7 +152,7 @@ impl Cursor {
     }
 
     pub fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize {
-        println!("write: {:?} at offset: {}", self, offset);
+        println!("{} - write: {:?}", offset, self);
         match self {
             Cursor::Bool(c) => c.write(src, dest, offset),
             Cursor::U8(c) => c.write(src, dest, offset),
@@ -180,7 +180,6 @@ pub struct PrimitiveCursor<T>
 where
     T: BorshDeserialize + BorshSerialize + std::fmt::Debug,
 {
-    offset: u16,
     value: T,
 }
 
@@ -210,7 +209,7 @@ where
         let buf = &data[offset..(offset + len)];
         let value = T::try_from_slice(&buf).unwrap();
         println!("Primitive value: {:?}", value);
-        (Self { offset: offset as u16, value }, len)
+        (Self { value }, len)
     }
     pub fn get(&self) -> &T {
         &self.value
@@ -246,8 +245,9 @@ impl Writable for StringCursor {
             StringValue::Origin(origin_offset, origin_len) => {
                 let origin_offset = origin_offset as usize;
                 dest[offset..(offset+origin_len as usize)].copy_from_slice(
-                    &src[(origin_offset as usize)..(origin_offset as usize+origin_len as usize)]
+                    &src[(origin_offset as usize)..(origin_offset as usize + origin_len as usize)]
                 );
+                println!("write string size: {}", origin_len);
                 origin_len as usize
             }
             StringValue::NewValue(ref s) => {
@@ -280,7 +280,6 @@ impl StringCursor {
     }
 
     fn set<S: Into<String>>(&mut self, value: S) {
-        println!("string cursor set");
         self.value = StringValue::NewValue(value.into());
     }
 }
@@ -308,9 +307,7 @@ impl Writable for StructCursor {
         let mut len = 0;
         for cursor in self.cursors {
             len += cursor.write(src, dest, offset + len);
-            println!("New len: {}", len);
         }
-        println!("Struct size: {}", len);
         len
     }
 }
@@ -369,17 +366,15 @@ impl Writable for VecCursor {
     }
 
     fn write(self, src: &[u8], dest: &mut [u8], offset: usize) -> usize {
-        let mut len = 0;
-        let buf = &mut dest[(offset as usize)..(offset as usize + 4)];
-        let mut w = io::Cursor::new(buf);
-        println!("write len: {}", self.cursors.len() + self.add.len());
+        let mut w = io::Cursor::new(&mut dest[(offset as usize)..(offset as usize + 4)]);
         borsh::to_writer(&mut w, &(self.cursors.len() as u32 + self.add.len() as u32)).unwrap();
+        let mut len = 4;
         for cursor in self.cursors {
-            len += cursor.write(src, dest, offset + 4 + len);
+            len += cursor.write(src, dest, offset + len);
         }
         for add in self.add {
             let add_len = add.len();
-            dest[(offset + len + 4)..(offset + len + add_len + 4)].copy_from_slice(&add);
+            dest[(offset + len)..(offset + len + add_len)].copy_from_slice(&add);
             len += add_len;
         }
 
@@ -390,7 +385,6 @@ impl Writable for VecCursor {
 impl VecCursor {
     fn new(item_type: &CursorType, data: &[u8], offset: usize) -> (Self, usize) {
         let mut cnt = u32::try_from_slice(&data[offset..(offset + 4)]).unwrap();
-        println!("vec cursor items count: {}", cnt);
         let mut total_len = 0;
         let mut cursors = Vec::with_capacity(cnt as usize);
         while cnt > 0 {
@@ -460,16 +454,17 @@ impl Writable for StaticVecCursor {
         match self.value {
             StaticVecValue::Origin(origin_offset, len) => {
                 let origin_offset = origin_offset as usize;
-                let len = len as usize;
-                dest[offset..(offset + 4 + len)]
-                    .copy_from_slice(&src[origin_offset..(origin_offset + 4 + len)]);
+                let len = len as usize + 4;
+                dest[offset..(offset + len)]
+                    .copy_from_slice(&src[origin_offset..(origin_offset + len)]);
                 len
             }
             StaticVecValue::NewValue(v) => {
+                println!("static vec write new value: {:?}", v);
                 let len = v.len();
-                let mut w = io::Cursor::new(&mut dest[offset..(offset + 4 + len)]);
+                let mut w = io::Cursor::new(&mut dest[offset..(offset + len + 4)]);
                 borsh::to_writer(&mut w, &v).unwrap();
-                len
+                len + 4
             }
         }
     }
@@ -484,6 +479,17 @@ impl StaticVecCursor {
             },
             len as usize + 4,
         )
+    }
+
+    pub fn get<'a, 'b>(&'a self, data: &'b [u8]) -> &'b [u8] {
+        match &self.value {
+            StaticVecValue::Origin(offset, len) => {
+                let offset = *offset as usize;
+                let len = *len as usize;
+                &data[(offset+4)..(offset+4+len)]
+            }
+            _ => panic!("data is already updated")
+        }
     }
 
     pub fn set(&mut self, value: Vec<u8>) {
@@ -651,7 +657,6 @@ impl Writable for PubkeyCursor {
 impl PubkeyCursor {
     fn new(data: &[u8], offset: usize) -> (Self, usize) {
         let pk = Pubkey::try_from_slice(&data[offset..(offset + 32)]);
-        println!("pubkey: {:?}", pk);
         (
             Self {
                 offset: offset as u16,
