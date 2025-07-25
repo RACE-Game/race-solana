@@ -1,3 +1,4 @@
+use crate::state::players;
 use crate::{error::ProcessError, processor::misc::pack_state_to_account, state::{DepositStatus, EntryType, GameState, PlayerDeposit}, types::DepositParams};
 use borsh::BorshDeserialize;
 ///! Player joins a game (cash, sng or tourney)
@@ -18,6 +19,8 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: DepositPa
     let temp_account = next_account_info(account_iter)?;
 
     let game_account = next_account_info(account_iter)?;
+
+    let players_reg_account = next_account_info(account_iter)?;
 
     let mint_account = next_account_info(account_iter)?;
 
@@ -53,12 +56,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: DepositPa
         return Err(ProcessError::InvalidMint)?;
     }
 
-
-    if !game_state
-        .players
-        .iter()
-        .any(|p| p.addr == *payer_account.key)
-    {
+    if !players::is_player_joined(&players_reg_account.try_borrow_data()?, &player_account.key)? {
         return Err(ProcessError::PlayerNotInGame)?;
     }
 

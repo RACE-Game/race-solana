@@ -125,8 +125,8 @@ pub struct GameState {
     pub settle_version: u64,
     // game size
     pub max_players: u16,
-    // game players
-    pub players: Box<Vec<PlayerJoin>>,
+    // the account to save all players
+    pub players_reg_account: Pubkey,
     // deposits
     pub deposits: Vec<PlayerDeposit>,
     // game servers (max: 10)

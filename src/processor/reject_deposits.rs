@@ -1,4 +1,5 @@
 use crate::state::DepositStatus;
+use crate::state::players;
 use crate::types::RejectDepositsParams;
 use crate::{error::ProcessError, state::GameState};
 use borsh::BorshDeserialize;
@@ -25,6 +26,8 @@ pub fn process(
     let transactor_account = next_account_info(&mut account_iter)?;
 
     let game_account = next_account_info(&mut account_iter)?;
+
+    let players_reg_account = next_account_info(&mut account_iter)?;
 
     let stake_account = next_account_info(&mut account_iter)?;
 
@@ -82,7 +85,9 @@ pub fn process(
         // The PlayerJoin with the same access_version should be removed as well
         // So the player can later join again
 
-        game_state.players.retain(|p| p.access_version != reject_deposit);
+        if let Some((idx, _)) = players::get_player_by_id(&players_reg_account.try_borrow_data()?, reject_deposit)? {
+            players::remove_player_by_index(&mut players_reg_account.try_borrow_mut_data()?, idx)?;
+        }
     }
 
     pack_state_to_account(

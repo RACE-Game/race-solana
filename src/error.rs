@@ -235,13 +235,30 @@ pub enum ProcessError {
     #[error("Empty recipient slot shares")]
     EmptyRecipientSlotShares,
 
-    /// 40
+    /// 3A
     #[error("Duplicated recipient slot token")]
     DuplicatedRecipientSlotToken,
 
-    /// 41
+    /// 3B
     #[error("Invalid recipient address")]
     InvalidRecipientAddress,
+
+    /// 3C
+    #[error("Invalid players account for initialization")]
+    InvalidPlayersRegAccountForInit,
+
+    /// 3D
+    #[error("Malformed players reg account")]
+    MalformedPlayersRegAccount,
+
+    /// 3E
+    #[error("Can not increase the size of players reg account")]
+    CantIncreasePlayersRegAccountSize,
+
+    /// 3F
+    #[error("Can not decrease the size of players reg account")]
+    CantDecreasePlayersRegAccountSize,
+
 }
 
 impl From<ProcessError> for ProgramError {

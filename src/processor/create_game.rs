@@ -9,6 +9,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+use crate::state::players;
 use crate::state::GameState;
 use crate::{
     error::ProcessError,
@@ -36,6 +37,8 @@ pub fn process(
 
     let game_account = next_account_info(accounts_iter)?;
 
+    let players_reg_account = next_account_info(accounts_iter)?;
+
     let stake_account = next_account_info(accounts_iter)?;
 
     let token_account = next_account_info(accounts_iter)?;
@@ -53,12 +56,18 @@ pub fn process(
     }
     let recipient_addr = recipient_account.key.to_owned();
 
+    players::validate_account_data(&players_reg_account.try_borrow_data()?)?;
+
+    let (pda_stake, _bump_seed_stake) = Pubkey::find_program_address(&[game_account.key.as_ref(), b"stake"], program_id);
+    let (pda_players, _bump_seed_players) = Pubkey::find_program_address(&[game_account.key.as_ref(), b"players"], program_id);
+
+    if pda_players.ne(&players_reg_account.key) {
+        return Err(ProcessError::InvalidPlayersRegAccountForInit)?;
+    }
+
     if is_native_mint(&token_account.key) {
         // For SOL, use PDA as stake account.
-        let (pda, _bump_seed) =
-            Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
-
-        if pda.ne(&stake_account.key) {
+        if pda_stake.ne(&stake_account.key) {
             msg!("For game account with native token, the stake account must be a PDA.");
             return Err(ProcessError::InvalidStakeAccount)?;
         }
@@ -74,13 +83,10 @@ pub fn process(
             return Err(ProcessError::InvalidStakeAccount)?;
         }
 
-        let (pda, _bump_seed) =
-            Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
-
         let set_authority_ix = set_authority(
             token_program.key,
             stake_account.key,
-            Some(&pda),
+            Some(&pda_stake),
             AuthorityType::AccountOwner,
             payer.key,
             &[&payer.key],
@@ -106,7 +112,7 @@ pub fn process(
         max_players: params.max_players,
         data_len: params.data.len() as u32,
         data: params.data,
-        players: Default::default(),
+        players_reg_account: *players_reg_account.key,
         deposits: Default::default(),
         servers: Default::default(),
         unlock_time: None,

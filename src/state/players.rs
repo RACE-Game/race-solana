@@ -1,23 +1,29 @@
-/// Helper fuctions for reading and mutating players information of a game.
-/// Each game has one players account, which contains a list of all PlayerJoin data.
-/// Each PlayerJoin is stored with 171 bytes.
-/// Since the verify_key isn't really useful in the contract logic, we usually skip it by deserilaizing the PlayerJoin with
-/// PlayerJoinWithoutKey struct, which is 43 bytes, completely on stack.
+/// Helper fuctions for reading and mutating players information of a game.  Each game has one
+/// players registration account(players_reg_account), which contains a list of all [[PlayerJoin]]s.
+/// Each PlayerJoin is stored as 171 bytes.  Since the verify_key isn't really useful in the
+/// program logic, we usually skip it by deserilaizing the PlayerJoin with PlayerJoinWithoutKey
+/// struct, which is 43 bytes, completely on stack.
 ///
 /// The account structure:
 ///
-/// [u16][PlayerJoin]*
-/// |    |
-/// |    |___ The array of PlayerJoins
-/// |___ The number of players
+/// [usize][128byte][PlayerJoin*]
+/// |      |        |___ The array of PlayerJoins, each uses 171 bytes.
+/// |      |___ The position flags, 0 stands for empty, 1 stands for occupied.
+/// |___ The number of players. It is legal to have some empty slots in the middle, those are not counted.
 ///
-use borsh::BorshDeserialize;
-use std::io;
-use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use crate::error::ProcessError;
 use crate::state::PlayerJoin;
+use borsh::BorshDeserialize;
+use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 
-const HEAD_LEN: usize = 2;
+const COUNT_LEN: usize = 8;
+const POSITION_FLAGS_LEN: usize = 128;
+const HEAD_LEN: usize = COUNT_LEN + POSITION_FLAGS_LEN;
 const PUBKEY_LEN: usize = 32;
+const POSITION_LEN: usize = 2;
+const POSITION_OFFSET: usize = PUBKEY_LEN;
+const ID_OFFSET: usize = PUBKEY_LEN + POSITION_LEN;
+const ID_LEN: usize = 8;
 const PLAYER_INFO_LEN: usize = 171;
 const PLAYER_INFO_WITHOUT_KEY_LEN: usize = 42;
 
@@ -29,10 +35,37 @@ pub struct PlayerJoinWithoutKey {
     pub access_version: u64,
 }
 
-pub fn get_players_count(data: &[u8]) -> Result<u16, ProgramError> {
-    Ok(u16::try_from_slice(&data[..HEAD_LEN])?)
+pub fn validate_account_data(data: &[u8]) -> Result<(), ProgramError> {
+    if data.len() != HEAD_LEN {
+        return Err(ProcessError::InvalidPlayersRegAccountForInit)?;
+    }
+
+    Ok(())
 }
 
+pub fn get_players_count(data: &[u8]) -> Result<usize, ProgramError> {
+    Ok(usize::try_from_slice(&data[..COUNT_LEN])?)
+}
+
+pub fn increase_players_count(data: &mut [u8], max_players: u16) -> Result<usize, ProgramError> {
+    let size = get_players_count(&data)?;
+    if size == max_players as usize {
+        return Err(ProcessError::CantIncreasePlayersRegAccountSize)?;
+    }
+    borsh::to_writer(&mut data[..COUNT_LEN], &(size + 1))?;
+    Ok(size + 1)
+}
+
+pub fn decrease_players_count(data: &mut [u8]) -> Result<usize, ProgramError> {
+    let size = get_players_count(&data)?;
+    if size == 0 {
+        return Err(ProcessError::CantDecreasePlayersRegAccountSize)?;
+    }
+    borsh::to_writer(&mut data[..COUNT_LEN], &(size - 1))?;
+    Ok(size - 1)
+}
+
+#[allow(unused)]
 pub fn get_player_by_index(
     data: &[u8],
     index: usize,
@@ -52,19 +85,113 @@ pub fn get_player_by_index(
     }
 }
 
+pub fn get_player_by_id(
+    data: &[u8],
+    id: u64,
+) -> Result<Option<(usize, PlayerJoinWithoutKey)>, ProgramError> {
+    let mut id_v = [0u8; 8];
+    borsh::to_writer(&mut id_v[..], &id)?;
+    let mut i = 0;
+    while HEAD_LEN + PLAYER_INFO_LEN * i < data.len() {
+        let start = HEAD_LEN + PLAYER_INFO_LEN * i;
+        let id_start = start + ID_OFFSET;
+        let id_end = id_start + ID_LEN;
+        if &id_v == &data[id_start..id_end] {
+            return Ok(Some((
+                i,
+                PlayerJoinWithoutKey::try_from_slice(
+                    &data[start..(start + PLAYER_INFO_WITHOUT_KEY_LEN)],
+                )?,
+            )));
+        }
+        i += 1;
+    }
+    return Ok(None);
+}
+
+#[allow(unused)]
 pub fn get_player_by_addr(
     data: &[u8],
     addr: &Pubkey,
 ) -> Result<Option<(usize, PlayerJoinWithoutKey)>, ProgramError> {
-    let size = get_players_count(data)? as usize;
-    for i in 0..size {
+    let mut i = 0;
+    while HEAD_LEN + PLAYER_INFO_LEN * i < data.len() {
+        let start = HEAD_LEN + PLAYER_INFO_LEN * i;
+        let addr_end = start + PUBKEY_LEN;
+        if addr.as_ref() == &data[start..addr_end] {
+            return Ok(Some((
+                i,
+                PlayerJoinWithoutKey::try_from_slice(
+                    &data[start..(start + PLAYER_INFO_WITHOUT_KEY_LEN)],
+                )?,
+            )));
+        }
+        i += 1;
+    }
+    return Ok(None);
+}
+
+pub fn is_player_joined(data: &[u8], addr: &Pubkey) -> Result<bool, ProgramError> {
+    let size = get_players_count(data)?;
+    // Find a slot
+    for i in 0..(size as usize) {
         let start = i * PLAYER_INFO_LEN + HEAD_LEN;
         let addr_end = start + PUBKEY_LEN;
         if addr.as_ref() == &data[start..addr_end] {
-            return Ok(Some((i, PlayerJoinWithoutKey::try_from_slice(&data[start..(start+PLAYER_INFO_WITHOUT_KEY_LEN)])?)));
+            return Ok(true);
         }
     }
-    return Ok(None)
+    Ok(false)
+}
+
+pub fn is_position_occupied(data: &[u8], position: u16) -> Result<bool, ProgramError> {
+    if data.len() < HEAD_LEN {
+        return Err(ProcessError::MalformedPlayersRegAccount)?;
+    }
+    // We support at most 1024 players
+    if position > 1024 {
+        return Ok(true);
+    }
+
+    let i = position / 8;
+    let o = position % 8;
+    let f = 1 << o as u8;
+
+    if f & (&data[COUNT_LEN + i as usize]) != 0 {
+        return Ok(true);
+    }
+
+    Ok(false)
+}
+
+pub fn set_position_flag(data: &mut [u8], position: u16, flag: bool) -> Result<(), ProgramError> {
+    if data.len() < HEAD_LEN {
+        return Err(ProcessError::MalformedPlayersRegAccount)?;
+    }
+
+    let i = position / 8;
+    let o = position % 8;
+    let f = 1 << o as u8;
+
+    if flag {
+        data[COUNT_LEN + i as usize] |= f;
+    } else {
+        data[COUNT_LEN + i as usize] &= !f;
+    }
+    return Ok(());
+}
+
+pub fn get_available_position(data: &[u8], max_players: u16) -> Result<u16, ProgramError> {
+    for position in 0u16..max_players {
+        let i = position / 8;
+        let o = position % 8;
+        let f = 1 << o as u8;
+        if data[COUNT_LEN + i as usize] & f == 0 {
+            println!("Found: {}, {}, {:#08b}", i, o, f);
+            return Ok(i * 8 + o);
+        }
+    }
+    return Err(ProcessError::GameFullAlready)?;
 }
 
 /// Add new player to the account. Return Some(index_of_the_player) if success.  If the player can't
@@ -72,39 +199,48 @@ pub fn get_player_by_addr(
 pub fn add_player(
     data: &mut [u8],
     player: &PlayerJoin,
+    max_players: u16,
 ) -> Result<Option<usize>, ProgramError> {
-    let size = get_players_count(data)? as usize;
-    println!("Size: {}", size);
+    let slots_count = (data.len() - HEAD_LEN) / PLAYER_INFO_LEN;
     // Find a slot
-    for i in 0..size {
+    for i in 0..slots_count {
         let start = i * PLAYER_INFO_LEN + HEAD_LEN;
         let addr_end = start + PUBKEY_LEN;
-        println!("data should be all zeros: {:?}", &data[start..addr_end]);
         if data[start..addr_end].iter().all(|&n| n == 0) {
-            // Found an empty slot, insert and return
-            borsh::to_writer(&mut data[start..(start+PLAYER_INFO_LEN)], player)?;
+            // Found an empty slot, increase the player acount and insert player info.
+            increase_players_count(data, max_players)?;
+            set_position_flag(data, player.position, true)?;
+            borsh::to_writer(&mut data[start..(start + PLAYER_INFO_LEN)], player)?;
             return Ok(Some(i));
         }
     }
     Ok(None) // Failed to insert
 }
 
-pub fn remove_player_by_index(
-    data: &mut [u8],
-    index: usize,
-) -> Result<(), ProgramError> {
+pub fn remove_player_by_index(data: &mut [u8], index: usize) -> Result<(), ProgramError> {
     let start = index * PLAYER_INFO_LEN + HEAD_LEN;
     let end = start + PLAYER_INFO_LEN;
-    data[start..end].fill(0);
+    if &[0; 32] != &data[start..(start + PUBKEY_LEN)] {
+        let pos_start = start + POSITION_OFFSET;
+        let pos_end = pos_start + POSITION_LEN;
+        let pos = u16::try_from_slice(&data[pos_start..pos_end])?;
+        data[start..end].fill(0);
+        set_position_flag(data, pos, false)?;
+        decrease_players_count(data)?;
+    }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use borsh::BorshSerialize;
 
-    fn create_player(addr: Pubkey, position: u16, access_version: u64, verify_key: &str) -> PlayerJoin {
+    fn create_player(
+        addr: Pubkey,
+        position: u16,
+        access_version: u64,
+        verify_key: &str,
+    ) -> PlayerJoin {
         PlayerJoin {
             addr,
             position,
@@ -115,12 +251,26 @@ mod tests {
 
     fn setup_data(players: Vec<PlayerJoin>) -> Vec<u8> {
         let mut data = vec![0; HEAD_LEN + players.len() * PLAYER_INFO_LEN];
-        borsh::to_writer(&mut data[..HEAD_LEN], &(players.len() as u16)).unwrap();
+        borsh::to_writer(&mut data[..COUNT_LEN], &players.len()).unwrap();
         for (i, player) in players.iter().enumerate() {
             let start = i * PLAYER_INFO_LEN + HEAD_LEN;
             borsh::to_writer(&mut data[start..(start + PLAYER_INFO_LEN)], &player).unwrap();
         }
         data
+    }
+
+    #[test]
+    fn test_init_account_data() {
+        let mut v = vec![0; HEAD_LEN];
+        validate_account_data(&mut v).unwrap();
+        assert_eq!(v, vec![0; HEAD_LEN]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_init_account_data_fail() {
+        let mut v = vec![0; 3];
+        validate_account_data(&mut v).unwrap();
     }
 
     #[test]
@@ -159,10 +309,10 @@ mod tests {
     #[test]
     fn test_add_player() {
         let player = create_player(Pubkey::new_unique(), 1, 1, "key");
-        let mut data = vec![0; HEAD_LEN + 2 * PLAYER_INFO_LEN];
-        borsh::to_writer(&mut data[..HEAD_LEN], &2u16).unwrap();
-        let result = add_player(&mut data, &player).unwrap();
-        assert_eq!(result, Some(0));
+        let mut data = setup_data(vec![player.clone()]);
+        data.resize(data.len() + 171, 0);
+        let result = add_player(&mut data, &player, 10).unwrap();
+        assert_eq!(result, Some(1));
         let added_player = get_player_by_index(&data, 0).unwrap().unwrap();
         assert_eq!(added_player.position, player.position);
     }
@@ -174,5 +324,56 @@ mod tests {
         remove_player_by_index(&mut data, 0).unwrap();
         let removed_player = get_player_by_index(&data, 0).unwrap();
         assert!(removed_player.is_none());
+        assert_eq!(get_players_count(&data).unwrap(), 0);
+        remove_player_by_index(&mut data, 0).unwrap();
+        assert_eq!(is_position_occupied(&data, 1).unwrap(), false);
+    }
+
+    #[test]
+    fn test_is_position_occupied() {
+        let mut data = vec![0; HEAD_LEN + 171]; // Assume only one player for simplicity
+        borsh::to_writer(&mut data[..HEAD_LEN], &1usize).unwrap();
+
+        assert_eq!(is_position_occupied(&data, 0).unwrap(), false);
+        set_position_flag(&mut data, 0, true).unwrap();
+        assert_eq!(is_position_occupied(&data, 0).unwrap(), true);
+
+        assert_eq!(is_position_occupied(&data, 128).unwrap(), false);
+    }
+
+    #[test]
+    fn test_set_position_flag() {
+        let mut data = vec![0; HEAD_LEN + 171]; // Assume only one player for simplicity
+        borsh::to_writer(&mut data[..HEAD_LEN], &1usize).unwrap();
+
+        assert_eq!(is_position_occupied(&data, 0).unwrap(), false);
+
+        set_position_flag(&mut data, 0, true).unwrap();
+        assert_eq!(is_position_occupied(&data, 0).unwrap(), true);
+
+        set_position_flag(&mut data, 0, false).unwrap();
+        assert_eq!(is_position_occupied(&data, 0).unwrap(), false);
+    }
+
+    #[test]
+    fn test_get_available_position() {
+        let mut data = vec![0; HEAD_LEN + PLAYER_INFO_LEN * 2]; // Assume two players for simplicity
+        borsh::to_writer(&mut data[..HEAD_LEN], &2usize).unwrap();
+
+        assert_eq!(get_available_position(&data, 2).unwrap(), 0);
+        set_position_flag(&mut data, 0, true).unwrap();
+        assert_eq!(get_available_position(&data, 2).unwrap(), 1);
+
+        set_position_flag(&mut data, 1, true).unwrap();
+        assert!(get_available_position(&data, 2).is_err());
+    }
+
+    #[test]
+    fn test_get_player_by_id() {
+        let player = create_player(Pubkey::new_unique(), 1, 1, "key");
+        let data = setup_data(vec![player.clone()]);
+        let (index, found_player) = get_player_by_id(&data, 1).unwrap().unwrap();
+        assert_eq!(index, 0);
+        assert_eq!(found_player.position, player.position);
     }
 }

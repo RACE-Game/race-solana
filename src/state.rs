@@ -3,7 +3,7 @@ mod registry;
 mod server;
 mod profile;
 mod recipient;
-mod players;
+pub mod players;
 
 pub use game::*;
 pub use registry::*;
