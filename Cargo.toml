@@ -16,6 +16,7 @@ borsh = "1.5.1"
 thiserror = "2.0.3"
 spl-associated-token-account = { version = "3.0.4", features = ["no-entrypoint"] }
 mpl-token-metadata = "3.2.3"
+arrayref = "0.3.9"
 
 [dev-dependencies]
 anyhow = "1.0.93"

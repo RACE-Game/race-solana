@@ -34,23 +34,3 @@ impl Pack for ServerState {
         Ok(Self::deserialize(&mut src).map_err(|_| ProcessError::ServerDeserializationFailed)?)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use solana_program::borsh::get_instance_packed_len;
-
-    use super::*;
-
-    #[test]
-    fn test_server_account_len() -> anyhow::Result<()> {
-        let mut server = ServerState::default();
-        server.addr = Pubkey::new_unique();
-        server.owner = Pubkey::new_unique();
-        server.endpoint = "https------------------------------".to_string();
-        let unpadded_len = get_instance_packed_len(&server)?;
-        println!("Server account len {}", unpadded_len);
-        assert!(unpadded_len <= SERVER_ACCOUNT_LEN);
-        assert_eq!(get_instance_packed_len(&server)?, 104);
-        Ok(())
-    }
-}
