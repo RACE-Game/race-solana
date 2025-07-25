@@ -42,9 +42,14 @@ pub fn get_player_by_index(
         return Ok(None);
     }
     let start = index * PLAYER_INFO_LEN + HEAD_LEN;
+    let addr_end = start + PUBKEY_LEN;
     let end = start + PLAYER_INFO_WITHOUT_KEY_LEN;
-    let data = &data[start..end];
-    Ok(Some(PlayerJoinWithoutKey::try_from_slice(data)?))
+    if data[start..addr_end].iter().any(|n| *n != 0) {
+        let data = &data[start..end];
+        Ok(Some(PlayerJoinWithoutKey::try_from_slice(data)?))
+    } else {
+        Ok(None)
+    }
 }
 
 pub fn get_player_by_addr(
@@ -53,10 +58,10 @@ pub fn get_player_by_addr(
 ) -> Result<Option<(usize, PlayerJoinWithoutKey)>, ProgramError> {
     let size = get_players_count(data)? as usize;
     for i in 0..size {
-        let addr_start = i * PLAYER_INFO_LEN + HEAD_LEN;
-        let addr_end = addr_start + PUBKEY_LEN;
-        if addr.as_ref() == &data[addr_start..addr_end] {
-            return Ok(Some((i, PlayerJoinWithoutKey::try_from_slice(data)?)));
+        let start = i * PLAYER_INFO_LEN + HEAD_LEN;
+        let addr_end = start + PUBKEY_LEN;
+        if addr.as_ref() == &data[start..addr_end] {
+            return Ok(Some((i, PlayerJoinWithoutKey::try_from_slice(&data[start..(start+PLAYER_INFO_WITHOUT_KEY_LEN)])?)));
         }
     }
     return Ok(None)
@@ -113,8 +118,7 @@ mod tests {
         borsh::to_writer(&mut data[..HEAD_LEN], &(players.len() as u16)).unwrap();
         for (i, player) in players.iter().enumerate() {
             let start = i * PLAYER_INFO_LEN + HEAD_LEN;
-            let mut w = io::Cursor::new(&mut data[start..(start + PLAYER_INFO_LEN)]);
-            player.serialize(&mut w).unwrap();
+            borsh::to_writer(&mut data[start..(start + PLAYER_INFO_LEN)], &player).unwrap();
         }
         data
     }
