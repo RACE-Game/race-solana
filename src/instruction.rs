@@ -25,11 +25,12 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The account of game owner
     /// 1. `[writable]` The account of game account
-    /// 2. `[writable]` The stake account of game
-    /// 3. `[]` PDA account
-    /// 4. `[]` The account to receive tokens
-    /// 5. `[]` Token program
-    /// 6. `[]` The system program
+    /// 2. `[writable]` The players account, hold all player registrations
+    /// 3. `[writable]` The stake account of game
+    /// 4. `[]` PDA account
+    /// 5. `[]` The account to receive tokens
+    /// 6. `[]` Token program
+    /// 7. `[]` The system program
     /// Rest are the bonus stake account and receiver(owner)'s ATA
     CloseGameAccount,
 

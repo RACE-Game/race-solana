@@ -259,6 +259,9 @@ pub enum ProcessError {
     #[error("Can not decrease the size of players reg account")]
     CantDecreasePlayersRegAccountSize,
 
+    /// 40
+    #[error("Invalid players reg account")]
+    InvalidPlayersRegAccount,
 }
 
 impl From<ProcessError> for ProgramError {

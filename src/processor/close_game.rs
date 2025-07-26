@@ -82,6 +82,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         return Err(ProgramError::MissingRequiredSignature);
     }
     let game_account = next_account_info(account_iter)?;
+    let players_reg_account = next_account_info(account_iter)?;
     let stake_account = next_account_info(account_iter)?;
     let pda_account = next_account_info(account_iter)?;
     let receiver_account = next_account_info(account_iter)?;
@@ -91,11 +92,15 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
     // check is_initialized?
 
+
     if game_state.owner.ne(&owner_account.key) {
         return Err(ProcessError::InvalidOwner)?;
     }
     if game_state.stake_account.ne(stake_account.key) {
         return Err(ProcessError::InvalidStakeAccount)?;
+    }
+    if players_reg_account.key.ne(&game_state.players_reg_account) {
+        return Err(ProcessError::InvalidPlayersRegAccount)?;
     }
 
     let (pda, bump_seed) = Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
@@ -139,13 +144,17 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     // Claim all available bonuses
     claim_bonuses(&game_state, owner_account, game_account, pda_account, bump_seed, token_program, account_iter)?;
 
+    // Close players reg account and transafer the SOL to the owner
     // Close game account and transfer the SOL to the owner
     **owner_account.lamports.borrow_mut() = owner_account
         .lamports()
         .checked_add(game_account.lamports())
+        .ok_or(ProcessError::StakeAmountOverflow)?
+        .checked_add(players_reg_account.lamports())
         .ok_or(ProcessError::StakeAmountOverflow)?;
     msg!("Lamports of the account returned to its owner");
     **game_account.lamports.borrow_mut() = 0;
+    **players_reg_account.lamports.borrow_mut() = 0;
 
     msg!("Successfully closed the game account: {}", game_account.key);
     Ok(())

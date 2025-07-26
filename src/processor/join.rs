@@ -1,4 +1,4 @@
-use crate::processor::misc::pack_state_to_account;
+use crate::processor::misc::{append_state_to_account, pack_state_to_account};
 use crate::state::{DepositStatus, PlayerDeposit, RecipientState};
 use crate::types::JoinParams;
 use crate::state::players;
@@ -205,12 +205,17 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
 
     msg!("Add player and its deposit to game state");
 
-    players::add_player(&mut players_reg_account.try_borrow_mut_data()?, &PlayerJoin {
+    let player_join = PlayerJoin {
         addr: payer_account.key.clone(),
         position,
         access_version: game_state.access_version,
         verify_key: params.verify_key,
-    }, game_state.max_players)?;
+    };
+    let idx = players::add_player(&mut players_reg_account.try_borrow_mut_data()?, &player_join)?;
+    if idx.is_none() {          // account is full, need realloc
+        players::increase_size_set_position_flag(&mut players_reg_account.try_borrow_mut_data()?, player_join.position)?;
+        append_state_to_account(&player_join, &players_reg_account, &payer_account, &system_program)?;
+    }
 
     game_state.deposits.push(PlayerDeposit {
         addr: payer_account.key.clone(),
@@ -220,7 +225,9 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
         status: DepositStatus::Pending,
     });
 
-    pack_state_to_account(game_state, &game_account, &player_account, &system_program)?;
+    players::set_versions(&mut game_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
+
+    pack_state_to_account(game_state, &game_account, &payer_account, &system_program)?;
 
     msg!(
         "Player {} joined game",

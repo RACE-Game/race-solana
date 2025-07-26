@@ -147,14 +147,42 @@ pub fn general_transfer<'a>(
 }
 
 #[inline(never)]
+pub fn append_state_to_account<'a, T: BorshSerialize>(
+    state: &T,
+    account: &AccountInfo<'a>,
+    payer: &AccountInfo<'a>,
+    system_program: &AccountInfo<'a>,
+) -> ProgramResult {
+    let old_len = account.data_len();
+    let new_data_len = borsh::object_length(&state)?;
+    account.realloc(account.data_len() + new_data_len, false)?;
+    let rent = Rent::get()?;
+    let new_minimum_balance = rent.minimum_balance(new_data_len);
+    let lamports_diff = new_minimum_balance.saturating_sub(account.lamports());
+
+    msg!(
+        "Transfer {} lamports to make account rent-exempt({}).",
+        lamports_diff,
+        new_minimum_balance
+    );
+    if lamports_diff > 0 {
+        invoke(
+            &system_instruction::transfer(payer.key, account.key, lamports_diff),
+            &[payer.clone(), account.clone(), system_program.clone()],
+        )?;
+    }
+    borsh::to_writer(&mut account.try_borrow_mut_data()?[old_len..], &state)?;
+    Ok(())
+}
+
+#[inline(never)]
 pub fn pack_state_to_account<'a, T: BorshSerialize>(
     state: T,
     account: &AccountInfo<'a>,
     payer: &AccountInfo<'a>,
     system_program: &AccountInfo<'a>,
 ) -> ProgramResult {
-    let new_data = borsh::to_vec(&state)?;
-    let new_data_len = new_data.len();
+    let new_data_len = borsh::object_length(&state)?;
     let old_data_len = account.data_len();
 
     msg!("Account data size: {} -> {}", old_data_len, new_data_len);
@@ -183,7 +211,7 @@ pub fn pack_state_to_account<'a, T: BorshSerialize>(
             }
         }
     }
-    account.try_borrow_mut_data()?.copy_from_slice(&new_data);
+    borsh::to_writer(&mut account.try_borrow_mut_data()?[..], &state)?;
 
     Ok(())
 }

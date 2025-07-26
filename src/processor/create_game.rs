@@ -1,8 +1,9 @@
-// use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
+    rent::Rent,
+    sysvar::Sysvar,
     program::invoke,
     program_error::ProgramError,
     program_pack::Pack,
@@ -56,13 +57,22 @@ pub fn process(
     }
     let recipient_addr = recipient_account.key.to_owned();
 
+    let (pda_stake, _bump_seed_stake) = Pubkey::find_program_address(&[game_account.key.as_ref(), b"stake"], program_id);
+
+    if game_account.owner.ne(&program_id) {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    if players_reg_account.owner.ne(&program_id) {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Ensure the players_reg_account has enough space
     players::validate_account_data(&players_reg_account.try_borrow_data()?)?;
 
-    let (pda_stake, _bump_seed_stake) = Pubkey::find_program_address(&[game_account.key.as_ref(), b"stake"], program_id);
-    let (pda_players, _bump_seed_players) = Pubkey::find_program_address(&[game_account.key.as_ref(), b"players"], program_id);
-
-    if pda_players.ne(&players_reg_account.key) {
-        return Err(ProcessError::InvalidPlayersRegAccountForInit)?;
+    let rent = Rent::get()?;
+    if !rent.is_exempt(players_reg_account.lamports(), players_reg_account.data_len()) {
+        return Err(ProgramError::AccountNotRentExempt);
     }
 
     if is_native_mint(&token_account.key) {
