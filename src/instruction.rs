@@ -116,7 +116,7 @@ pub enum RaceInstruction {
     /// 1. `[]` The player account
     /// 2. `[writable]` The temp account
     /// 3. `[writable]` The game account
-    /// 4. `[writable]` The game players account
+    /// 4. `[writable]` The players reg account
     /// 5. `[]` The mint account.
     /// 6. `[writable]` The stake account that holds players' buyin assets
     /// 7. `[]` The recipient account

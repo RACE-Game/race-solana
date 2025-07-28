@@ -57,7 +57,7 @@ pub fn process(
     }
     let recipient_addr = recipient_account.key.to_owned();
 
-    let (pda_stake, _bump_seed_stake) = Pubkey::find_program_address(&[game_account.key.as_ref(), b"stake"], program_id);
+    let (pda_stake, _bump_seed_stake) = Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
 
     if game_account.owner.ne(&program_id) {
         return Err(ProgramError::InvalidAccountOwner);
