@@ -7,6 +7,7 @@
 //! 1. All changes are sum up to zero.
 //! 2. Player without assets must be ejected.
 
+use crate::state::players;
 use crate::state::{DepositStatus, RecipientState};
 use crate::types::{Award, BalanceChange, Settle, SettleParams, Transfer};
 use crate::{
@@ -53,6 +54,8 @@ pub fn process(
 
     let game_account = next_account_info(&mut account_iter)?;
 
+    let players_reg_account = next_account_info(&mut account_iter)?;
+
     let stake_account = next_account_info(&mut account_iter)?;
 
     let pda_account = next_account_info(&mut account_iter)?;
@@ -98,6 +101,7 @@ pub fn process(
         &mut game_state,
         *settles,
         game_account,
+        players_reg_account,
         stake_account,
         pda_account,
         bump_seed,
@@ -126,6 +130,7 @@ pub fn process(
         &mut game_state,
         *awards,
         game_account,
+        players_reg_account,
         pda_account,
         transactor_account,
         bump_seed,
@@ -159,6 +164,8 @@ pub fn process(
         // msg!("Update entry lock: {:?}", entry_lock);
         game_state.entry_lock = entry_lock;
     }
+
+    players::set_versions(&mut players_reg_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
 
     pack_state_to_account(
         game_state,
@@ -202,6 +209,7 @@ fn handle_settles<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     game_state: &'c mut GameState,
     settles: Vec<Settle>,
     game_account: &'a AccountInfo<'b>,
+    players_reg_account: &'a AccountInfo<'b>,
     stake_account: &'a AccountInfo<'b>,
     pda_account: &'a AccountInfo<'b>,
     bump_seed: u8,
@@ -243,24 +251,18 @@ fn handle_settles<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
 
         game_state.balances.retain(|b| b.balance > 0);
 
-        if let Some(player) = game_state
-            .players
-            .iter_mut()
-            .find(|p| p.access_version == settle.player_id)
-        {
-            if settle.amount > 0 {
+        let mut indices_to_remove = vec![];
+        if let Some((player_idx, player)) = players::get_player_by_id(&players_reg_account.try_borrow_data()?, settle.player_id)? {
+            if settle.player_id != 0 && settle.amount > 0 {
                 pays.push((player.addr, settle.amount));
             }
-        } else {
-            if settle.player_id != 0 {
-                return Err(ProcessError::InvalidSettlePlayerId)?;
+            if settle.eject {
+                indices_to_remove.push(player_idx);
             }
         }
 
-        if settle.eject {
-            game_state
-                .players
-                .retain(|p| p.access_version != settle.player_id);
+        for idx in indices_to_remove {
+            players::remove_player_by_index(&mut players_reg_account.try_borrow_mut_data()?, idx)?;
         }
     }
 
@@ -286,6 +288,7 @@ fn handle_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     game_state: &'c mut GameState,
     awards: Vec<Award>,
     game_account: &'a AccountInfo<'b>,
+    players_reg_account: &'a AccountInfo<'b>,
     pda_account: &'a AccountInfo<'b>,
     transactor_account: &'a AccountInfo<'b>,
     bump_seed: u8,
@@ -309,12 +312,9 @@ fn handle_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
                 return Err(ProcessError::InvalidAwardIdentifier)?;
             }
 
-            let player = match game_state
-                .players
-                .iter_mut()
-                .find(|p| p.access_version == player_id)
-            {
-                Some(p) => p,
+
+            let player = match players::get_player_by_id(&players_reg_account.try_borrow_data()?, player_id)? {
+                Some((_, p)) => p,
                 None => return Err(ProcessError::InvalidAwardPlayerId)?,
             };
 

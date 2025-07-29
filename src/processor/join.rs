@@ -1,6 +1,7 @@
-use crate::processor::misc::pack_state_to_account;
+use crate::processor::misc::{append_state_to_account, pack_state_to_account};
 use crate::state::{DepositStatus, PlayerDeposit, RecipientState};
 use crate::types::JoinParams;
+use crate::state::players;
 use crate::{
     error::ProcessError,
     state::{EntryType, GameState, PlayerJoin},
@@ -34,6 +35,8 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
     let temp_account = next_account_info(account_iter)?;
 
     let game_account = next_account_info(account_iter)?;
+
+    let players_reg_account = next_account_info(account_iter)?;
 
     let mint_account = next_account_info(account_iter)?;
 
@@ -92,7 +95,8 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
     // 2. position within [0..=(len-1)]?
     // 3. player already joined?
     // 4. position already taken?
-    if game_state.max_players as usize == game_state.players.len() {
+    let players_len = players::get_players_count(&players_reg_account.try_borrow_data()?)?;
+    if game_state.max_players as usize == players_len {
         return Err(ProcessError::GameFullAlready)?;
     }
 
@@ -100,28 +104,13 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
         return Err(ProcessError::InvalidPosition)?;
     }
 
-    if game_state
-        .players
-        .iter()
-        .any(|p| p.addr == *payer_account.key)
-    {
+    if players::is_player_joined(&players_reg_account.try_borrow_data()?, &player_account.key)? {
         return Err(ProcessError::JoinedGameAlready)?;
     }
 
     let mut position = params.position;
-    if game_state
-        .players
-        .iter()
-        .any(|p| p.position == params.position)
-    {
-        if let Some(pos) = (0..game_state.max_players)
-            .into_iter()
-            .find(|&i| !game_state.players.iter().any(|p| p.position == i as u16))
-        {
-            position = pos;
-        } else {
-            return Err(ProcessError::PositionTakenAlready)?;
-        }
+    if players::is_position_occupied(&players_reg_account.try_borrow_data()?, position)? {
+        position = players::get_available_position(&players_reg_account.try_borrow_data()?, game_state.max_players)?;
     }
 
     msg!("Player position: {:?}", position);
@@ -216,13 +205,18 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
 
     msg!("Add player and its deposit to game state");
 
-    // Player joins
-    game_state.players.push(PlayerJoin {
+    let player_join = PlayerJoin {
         addr: payer_account.key.clone(),
         position,
         access_version: game_state.access_version,
         verify_key: params.verify_key,
-    });
+    };
+    let idx = players::add_player(&mut players_reg_account.try_borrow_mut_data()?, &player_join)?;
+    if idx.is_none() {          // account is full, need realloc
+        players::increase_size_set_position_flag(&mut players_reg_account.try_borrow_mut_data()?, player_join.position)?;
+        players::increase_slots_count(&mut players_reg_account.try_borrow_mut_data()?)?;
+        append_state_to_account(&player_join, &players_reg_account, &payer_account, &system_program)?;
+    }
 
     game_state.deposits.push(PlayerDeposit {
         addr: payer_account.key.clone(),
@@ -232,7 +226,9 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
         status: DepositStatus::Pending,
     });
 
-    pack_state_to_account(game_state, &game_account, &player_account, &system_program)?;
+    players::set_versions(&mut players_reg_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
+
+    pack_state_to_account(game_state, &game_account, &payer_account, &system_program)?;
 
     msg!(
         "Player {} joined game",

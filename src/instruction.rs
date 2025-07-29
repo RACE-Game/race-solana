@@ -11,12 +11,13 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The account of transactor
     /// 1. `[writable]` The game account, hold all necessary info about the game
-    /// 2. `[writable]` The temp stake account
-    /// 3. `[]` The mint account
-    /// 4. `[]` The token program
-    /// 5. `[]` The bundled data account
-    /// 6. `[]` The recipient account
-    /// 7. `[]` The system program
+    /// 2. `[writable]` The players account, hold all player registrations
+    /// 3. `[writable]` The temp stake account
+    /// 4. `[]` The mint account
+    /// 5. `[]` The token program
+    /// 6. `[]` The bundled data account
+    /// 7. `[]` The recipient account
+    /// 8. `[]` The system program
     CreateGameAccount { params: CreateGameAccountParams },
 
     /// # [1] Close a game
@@ -24,11 +25,12 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The account of game owner
     /// 1. `[writable]` The account of game account
-    /// 2. `[writable]` The stake account of game
-    /// 3. `[]` PDA account
-    /// 4. `[]` The account to receive tokens
-    /// 5. `[]` Token program
-    /// 6. `[]` The system program
+    /// 2. `[writable]` The players account, hold all player registrations
+    /// 3. `[writable]` The stake account of game
+    /// 4. `[]` PDA account
+    /// 5. `[]` The account to receive tokens
+    /// 6. `[]` Token program
+    /// 7. `[]` The system program
     /// Rest are the bonus stake account and receiver(owner)'s ATA
     CloseGameAccount,
 
@@ -60,11 +62,12 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The game transactor account
     /// 1. `[writable]` The game account
-    /// 2. `[writable]` The stake account, must match the one in game account
-    /// 3. `[]` PDA account
-    /// 4. `[]` The recipient account
-    /// 5. `[]` The token program
-    /// 6. `[]` The system program
+    /// 2. `[wirtable]` The players reg account
+    /// 3. `[writable]` The stake account, must match the one in game account
+    /// 4. `[]` PDA account
+    /// 5. `[]` The recipient account
+    /// 6. `[]` The token program
+    /// 7. `[]` The system program
     /// Following:
     /// `[]` Every players' account to get paid, must be in the same order with payment settles
     /// `[]` Every recipient slot accounts to receive transfer
@@ -85,8 +88,9 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The payer acount (the server itself)
     /// 1. `[writable]` The game account to be served
-    /// 2. `[]` The server account
-    /// 3. `[]` The system program
+    /// 2. `[wirtable]` The players reg account
+    /// 3. `[]` The server account
+    /// 4. `[]` The system program
     ServeGame { params: ServeParams },
 
     /// # [8] Register a game to the registry
@@ -111,15 +115,16 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The payer account
     /// 1. `[]` The player account
-    /// 1. `[writable]` The temp account
-    /// 2. `[writable]` The game account
-    /// 3. `[]` The mint account.
-    /// 4. `[writable]` The stake account that holds players' buyin assets
-    /// 5. `[]` The recipient account
-    /// 6. `[writable]` The pda account
-    /// 7. `[]` The SPL token program
-    /// 8. `[]` The system program
-    /// (Optional)9. `[]` Other account to receive the payment. For EntryType::Ticket
+    /// 2. `[writable]` The temp account
+    /// 3. `[writable]` The game account
+    /// 4. `[writable]` The players reg account
+    /// 5. `[]` The mint account.
+    /// 6. `[writable]` The stake account that holds players' buyin assets
+    /// 7. `[]` The recipient account
+    /// 8. `[writable]` The pda account
+    /// 9. `[]` The SPL token program
+    /// 10. `[]` The system program
+    /// (Optional)11. `[]` Other account to receive the payment. For EntryType::Ticket
     JoinGame { params: JoinParams },
 
     /// # [11] Publish a game
@@ -176,11 +181,12 @@ pub enum RaceInstruction {
     /// 1. `[]` The player account
     /// 2. `[writable]` The temp account
     /// 3. `[writable]` The game account
-    /// 4. `[]` The mint account
-    /// 5. `[writable]` The stake account that holds players' deposit assets
-    /// 6. `[writable]` The pda account
-    /// 7. `[]` The SPL token program
-    /// 8. `[]` The system program
+    /// 4. `[writable]` The players reg account
+    /// 5. `[]` The mint account
+    /// 6. `[writable]` The stake account that holds players' deposit assets
+    /// 7. `[writable]` The pda account
+    /// 8. `[]` The SPL token program
+    /// 9. `[]` The system program
     Deposit { params: DepositParams },
 
     /// # [16] Attach a bonus to a game
@@ -198,10 +204,11 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The transactor account
     /// 1. `[writable]` The game account
-    /// 2. `[]` The stake account
-    /// 3. `[]` The PDA from game account
-    /// 4. `[]` The SPL token program
-    /// 5. `[]` The system program
+    /// 2. `[writable]` The players reg account
+    /// 3. `[]` The stake account
+    /// 4. `[]` The PDA from game account
+    /// 5. `[]` The SPL token program
+    /// 6. `[]` The system program
     /// Rest. `[]` The receiver for each rejected deposit
     RejectDeposits { params: RejectDepositsParams },
 
