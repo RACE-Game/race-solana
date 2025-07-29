@@ -15,7 +15,8 @@ use solana_program::{
 };
 
 use crate::{
-    error::ProcessError, processor::misc::pack_state_to_account, state::{GameState, ServerJoin, ServerState}
+    error::ProcessError, processor::misc::pack_state_to_account,
+    state::{GameState, ServerJoin, ServerState, players}
 };
 use crate::{constants::MAX_SERVER_NUM, types::ServeParams};
 
@@ -78,6 +79,8 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
 
     game_state.servers.push(server_to_join);
     game_state.access_version = new_access_version;
+
+    players::set_versions(&mut game_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
 
     msg!(
         "Server {} joins game {}",
