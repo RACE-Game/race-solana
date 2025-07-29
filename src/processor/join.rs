@@ -214,6 +214,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
     let idx = players::add_player(&mut players_reg_account.try_borrow_mut_data()?, &player_join)?;
     if idx.is_none() {          // account is full, need realloc
         players::increase_size_set_position_flag(&mut players_reg_account.try_borrow_mut_data()?, player_join.position)?;
+        players::increase_slots_count(&mut players_reg_account.try_borrow_mut_data()?)?;
         append_state_to_account(&player_join, &players_reg_account, &payer_account, &system_program)?;
     }
 

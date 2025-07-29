@@ -6,8 +6,9 @@
 ///
 /// The account structure:
 ///
-/// [u64][u64][usize][128byte][PlayerJoin*]
-/// |    |     |      |        |___ The array of PlayerJoins, each uses 171 bytes.
+/// [u64][u64][usize][128byte][4byte][PlayerJoin*]
+/// |    |     |      |       |      |___ The array of PlayerJoins, each uses 171 bytes.
+/// |    |     |      |       |___ The total number of slots, empty slots included.
 /// |    |     |      |___ The position flags, 0 stands for empty, 1 stands for occupied.
 /// |    |     |___ The number of players. It is legal to have some empty slots in the middle, those are not counted.
 /// |    | __ The settle_version. Updated every time a settlement is procced.
@@ -25,6 +26,7 @@ const PUBKEY_LEN: usize = 32;
 const POSITION_FLAGS_LEN: usize = 128;
 const PLAYER_INFO_LEN: usize = 171;
 const PLAYER_INFO_WITHOUT_KEY_LEN: usize = 42;
+const SLOTS_COUNT_LEN: usize = 4;
 
 // lens for fields of PlayerJoin
 const POSITION_LEN: usize = 2;
@@ -38,8 +40,9 @@ const SETTLE_VERSION_OFFSET: usize = ACCESS_VERSION_OFFSET + VERSION_LEN;
 const COUNT_OFFSET: usize = SETTLE_VERSION_OFFSET + VERSION_LEN;
 #[allow(unused)]
 const POSITION_FLAGS_OFFSET: usize = COUNT_OFFSET + COUNT_LEN;
+const SLOTS_COUNT_OFFSET: usize = POSITION_FLAGS_OFFSET + POSITION_FLAGS_LEN;
 
-pub const HEAD_LEN: usize = POSITION_FLAGS_OFFSET + POSITION_FLAGS_LEN;
+pub const HEAD_LEN: usize = SLOTS_COUNT_OFFSET + SLOTS_COUNT_LEN;
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
 #[derive(Debug, BorshDeserialize)]
@@ -216,10 +219,21 @@ pub fn increase_size_set_position_flag(data: &mut [u8], position: u16) -> Result
     return Ok(());
 }
 
+pub fn get_slots_count(data: &[u8]) -> Result<usize, ProgramError> {
+    let slots_count = u32::try_from_slice(&data[SLOTS_COUNT_OFFSET..(SLOTS_COUNT_OFFSET+SLOTS_COUNT_LEN)])?;
+    Ok(slots_count as usize)
+}
+
+pub fn increase_slots_count(data: &mut [u8]) -> Result<(), ProgramError> {
+    let slots_count = get_slots_count(&data)?;
+    borsh::to_writer(&mut data[SLOTS_COUNT_OFFSET..(SLOTS_COUNT_OFFSET+SLOTS_COUNT_LEN)], &(slots_count as u32+1))?;
+    Ok(())
+}
+
 /// Add new player to the account. Return Some(index_of_the_player) if success.  If the player can't
 /// be added, the caller should realloc the account and retry.
 pub fn add_player(data: &mut [u8], player: &PlayerJoin) -> Result<Option<usize>, ProgramError> {
-    let slots_count = (data.len() - HEAD_LEN) / PLAYER_INFO_LEN;
+    let slots_count = get_slots_count(&data)?;
     // Find a slot
     for i in 0..slots_count {
         let start = i * PLAYER_INFO_LEN + HEAD_LEN;
@@ -273,6 +287,7 @@ mod tests {
         for (i, player) in players.iter().enumerate() {
             let start = i * PLAYER_INFO_LEN + HEAD_LEN;
             borsh::to_writer(&mut data[start..(start + PLAYER_INFO_LEN)], &player).unwrap();
+            increase_slots_count(&mut data).unwrap();
         }
         data
     }
@@ -329,6 +344,7 @@ mod tests {
         let player = create_player(Pubkey::new_unique(), 1, 1, "key");
         let mut data = setup_data(vec![player.clone()]);
         data.resize(data.len() + 171, 0);
+        increase_slots_count(&mut data).unwrap();
         let result = add_player(&mut data, &player).unwrap();
         assert_eq!(result, Some(1));
         let added_player = get_player_by_index(&data, 0).unwrap().unwrap();
