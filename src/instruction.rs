@@ -88,8 +88,9 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The payer acount (the server itself)
     /// 1. `[writable]` The game account to be served
-    /// 2. `[]` The server account
-    /// 3. `[]` The system program
+    /// 2. `[wirtable]` The players reg account
+    /// 3. `[]` The server account
+    /// 4. `[]` The system program
     ServeGame { params: ServeParams },
 
     /// # [8] Register a game to the registry

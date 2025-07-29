@@ -35,9 +35,15 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
         return Err(ProcessError::InvalidAccountStatus)?;
     }
 
+    let players_reg_account = next_account_info(account_iter)?;
+
     let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
     if !game_state.is_initialized {
         return Err(ProgramError::UninitializedAccount);
+    }
+
+    if players_reg_account.key.ne(&game_state.players_reg_account) {
+        return Err(ProcessError::InvalidPlayersRegAccount)?;
     }
 
     let server_account = next_account_info(account_iter)?;
@@ -80,7 +86,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
     game_state.servers.push(server_to_join);
     game_state.access_version = new_access_version;
 
-    players::set_versions(&mut game_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
+    players::set_versions(&mut players_reg_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
 
     msg!(
         "Server {} joins game {}",

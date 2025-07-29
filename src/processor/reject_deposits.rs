@@ -90,7 +90,7 @@ pub fn process(
         }
     }
 
-    players::set_versions(&mut game_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
+    players::set_versions(&mut players_reg_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
 
     pack_state_to_account(
         game_state,

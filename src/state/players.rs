@@ -17,7 +17,7 @@
 use crate::error::ProcessError;
 use crate::state::PlayerJoin;
 use borsh::BorshDeserialize;
-use solana_program::{program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{program_error::ProgramError, pubkey::Pubkey, msg};
 
 // lens for each fields
 const VERSION_LEN: usize = 8;
@@ -61,6 +61,7 @@ pub fn validate_account_data(data: &[u8]) -> Result<(), ProgramError> {
 }
 
 pub fn set_versions(data: &mut [u8], access_version: u64, settle_version: u64) -> Result<(), ProgramError> {
+    msg!("Set versions, access version = {}, settle version = {}", access_version, settle_version);
     borsh::to_writer(&mut data[ACCESS_VERSION_OFFSET..(ACCESS_VERSION_OFFSET+VERSION_LEN)], &access_version)?;
     borsh::to_writer(&mut data[SETTLE_VERSION_OFFSET..(SETTLE_VERSION_OFFSET+VERSION_LEN)], &settle_version)?;
     Ok(())

@@ -157,7 +157,7 @@ pub fn append_state_to_account<'a, T: BorshSerialize>(
     let new_data_len = borsh::object_length(&state)?;
     account.realloc(account.data_len() + new_data_len, false)?;
     let rent = Rent::get()?;
-    let new_minimum_balance = rent.minimum_balance(new_data_len);
+    let new_minimum_balance = rent.minimum_balance(old_len + new_data_len);
     let lamports_diff = new_minimum_balance.saturating_sub(account.lamports());
 
     msg!(
