@@ -226,7 +226,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
         status: DepositStatus::Pending,
     });
 
-    players::set_versions(&mut game_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
+    players::set_versions(&mut players_reg_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
 
     pack_state_to_account(game_state, &game_account, &payer_account, &system_program)?;
 

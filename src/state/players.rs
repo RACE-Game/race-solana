@@ -7,7 +7,7 @@
 /// The account structure:
 ///
 /// [u64][u64][usize][128byte][4byte][PlayerJoin*]
-/// |    |     |      |       |      |___ The array of PlayerJoins, each uses 171 bytes.
+/// |    |     |      |       |      |___ The array of PlayerJoins, each uses 170 bytes.
 /// |    |     |      |       |___ The total number of slots, empty slots included.
 /// |    |     |      |___ The position flags, 0 stands for empty, 1 stands for occupied.
 /// |    |     |___ The number of players. It is legal to have some empty slots in the middle, those are not counted.
@@ -24,7 +24,7 @@ const VERSION_LEN: usize = 8;
 const COUNT_LEN: usize = 8;
 const PUBKEY_LEN: usize = 32;
 const POSITION_FLAGS_LEN: usize = 128;
-const PLAYER_INFO_LEN: usize = 171;
+const PLAYER_INFO_LEN: usize = 170;
 const PLAYER_INFO_WITHOUT_KEY_LEN: usize = 42;
 const SLOTS_COUNT_LEN: usize = 4;
 
@@ -178,7 +178,7 @@ pub fn is_position_occupied(data: &[u8], position: u16) -> Result<bool, ProgramE
     let o = position % 8;
     let f = 1 << o as u8;
 
-    if f & (&data[COUNT_LEN + i as usize]) != 0 {
+    if f & (&data[POSITION_OFFSET + i as usize]) != 0 {
         return Ok(true);
     }
 
@@ -187,7 +187,7 @@ pub fn is_position_occupied(data: &[u8], position: u16) -> Result<bool, ProgramE
 
 pub fn set_position_flag(data: &mut [u8], position: u16, flag: bool) -> Result<(), ProgramError> {
     if data.len() < HEAD_LEN {
- return Err(ProcessError::MalformedPlayersRegAccount)?;
+        return Err(ProcessError::MalformedPlayersRegAccount)?;
     }
 
     let i = position / 8;
@@ -195,9 +195,9 @@ pub fn set_position_flag(data: &mut [u8], position: u16, flag: bool) -> Result<(
     let f = 1 << o as u8;
 
     if flag {
-        data[COUNT_LEN + i as usize] |= f;
+        data[POSITION_OFFSET + i as usize] |= f;
     } else {
-        data[COUNT_LEN + i as usize] &= !f;
+        data[POSITION_OFFSET + i as usize] &= !f;
     }
     return Ok(());
 }
@@ -207,7 +207,7 @@ pub fn get_available_position(data: &[u8], max_players: u16) -> Result<u16, Prog
         let i = position / 8;
         let o = position % 8;
         let f = 1 << o as u8;
-        if data[COUNT_LEN + i as usize] & f == 0 {
+        if data[POSITION_OFFSET + i as usize] & f == 0 {
             return Ok(i * 8 + o);
         }
     }
@@ -365,29 +365,27 @@ mod tests {
     }
 
     #[test]
-    fn test_is_position_occupied() {
-        let mut data = vec![0; HEAD_LEN + 171]; // Assume only one player for simplicity
-        borsh::to_writer(&mut data[..HEAD_LEN], &1usize).unwrap();
-
-        assert_eq!(is_position_occupied(&data, 0).unwrap(), false);
-        set_position_flag(&mut data, 0, true).unwrap();
-        assert_eq!(is_position_occupied(&data, 0).unwrap(), true);
-
-        assert_eq!(is_position_occupied(&data, 128).unwrap(), false);
-    }
-
-    #[test]
     fn test_set_position_flag() {
-        let mut data = vec![0; HEAD_LEN + 171]; // Assume only one player for simplicity
-        borsh::to_writer(&mut data[..HEAD_LEN], &1usize).unwrap();
-
+        let mut data = vec![0; HEAD_LEN];
         assert_eq!(is_position_occupied(&data, 0).unwrap(), false);
 
         set_position_flag(&mut data, 0, true).unwrap();
+        println!("data: {:?}", &data[POSITION_FLAGS_OFFSET..(POSITION_FLAGS_OFFSET+POSITION_FLAGS_LEN)]);
         assert_eq!(is_position_occupied(&data, 0).unwrap(), true);
 
         set_position_flag(&mut data, 0, false).unwrap();
+        println!("data: {:?}", &data[POSITION_FLAGS_OFFSET..(POSITION_FLAGS_OFFSET+POSITION_FLAGS_LEN)]);
         assert_eq!(is_position_occupied(&data, 0).unwrap(), false);
+
+        assert_eq!(is_position_occupied(&data, 1).unwrap(), false);
+
+        set_position_flag(&mut data, 1, true).unwrap();
+        println!("data: {:?}", &data[POSITION_FLAGS_OFFSET..(POSITION_FLAGS_OFFSET+POSITION_FLAGS_LEN)]);
+        assert_eq!(is_position_occupied(&data, 1).unwrap(), true);
+
+        set_position_flag(&mut data, 1, false).unwrap();
+        println!("data: {:?}", &data[POSITION_FLAGS_OFFSET..(POSITION_FLAGS_OFFSET+POSITION_FLAGS_LEN)]);
+        assert_eq!(is_position_occupied(&data, 1).unwrap(), false);
     }
 
     #[test]
@@ -399,7 +397,9 @@ mod tests {
         set_position_flag(&mut data, 0, true).unwrap();
         assert_eq!(get_available_position(&data, 2).unwrap(), 1);
 
+        assert_eq!(is_position_occupied(&data, 1).unwrap(), false);
         set_position_flag(&mut data, 1, true).unwrap();
+        assert_eq!(is_position_occupied(&data, 1).unwrap(), true);
         assert!(get_available_position(&data, 2).is_err());
     }
 

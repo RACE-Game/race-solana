@@ -165,7 +165,7 @@ pub fn process(
         game_state.entry_lock = entry_lock;
     }
 
-    players::set_versions(&mut game_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
+    players::set_versions(&mut players_reg_account.try_borrow_mut_data()?, game_state.access_version, game_state.settle_version)?;
 
     pack_state_to_account(
         game_state,
@@ -251,13 +251,18 @@ fn handle_settles<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
 
         game_state.balances.retain(|b| b.balance > 0);
 
+        let mut indices_to_remove = vec![];
         if let Some((player_idx, player)) = players::get_player_by_id(&players_reg_account.try_borrow_data()?, settle.player_id)? {
             if settle.player_id != 0 && settle.amount > 0 {
                 pays.push((player.addr, settle.amount));
             }
             if settle.eject {
-                players::remove_player_by_index(&mut players_reg_account.try_borrow_mut_data()?, player_idx)?;
+                indices_to_remove.push(player_idx);
             }
+        }
+
+        for idx in indices_to_remove {
+            players::remove_player_by_index(&mut players_reg_account.try_borrow_mut_data()?, idx)?;
         }
     }
 
