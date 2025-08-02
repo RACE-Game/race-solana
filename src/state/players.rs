@@ -1,6 +1,6 @@
 /// Helper fuctions for reading and mutating players information of a game.  Each game has one
 /// players registration account(players_reg_account), which contains a list of all [[PlayerJoin]]s.
-/// Each PlayerJoin is stored as 171 bytes.  Since the verify_key isn't really useful in the
+/// Each PlayerJoin is stored as 170 bytes.  Since the verify_key isn't really useful in the
 /// program logic, we usually skip it by deserilaizing the PlayerJoin with PlayerJoinWithoutKey
 /// struct, which is 43 bytes, completely on stack.
 ///
