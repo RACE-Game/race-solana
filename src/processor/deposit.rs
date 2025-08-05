@@ -42,6 +42,9 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: DepositPa
         return Err(ProgramError::AccountNotRentExempt);
     }
 
+    if game_account.data.borrow()[0] != 1 {
+        return Err(ProgramError::UninitializedAccount);
+    }
     let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     if game_state.settle_version < params.settle_version {

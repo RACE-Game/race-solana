@@ -89,8 +89,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let token_program = next_account_info(account_iter)?;
     let _system_program = next_account_info(account_iter)?;
 
+    if game_account.data.borrow()[0] != 1 {
+        return Err(ProgramError::UninitializedAccount);
+    }
     let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
-    // check is_initialized?
 
     if game_state.owner.ne(&owner_account.key) {
         return Err(ProcessError::InvalidOwner)?;

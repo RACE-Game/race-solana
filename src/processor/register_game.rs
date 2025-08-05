@@ -1,5 +1,5 @@
 use crate::{
-    error::ProcessError, processor::misc::pack_state_to_account, state::{GameReg, GameState, GameStatus, RegistryState}
+    error::ProcessError, processor::misc::pack_state_to_account, state::{GameReg, GameState, RegistryState}
 };
 
 use borsh::BorshDeserialize;
@@ -39,10 +39,10 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
         return Err(ProcessError::RegistrationIsFull)?;
     }
 
-    let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
-    if game_state.game_status != GameStatus::Initialized {
+    if game_account.data.borrow()[0] != 1 {
         return Err(ProgramError::UninitializedAccount);
     }
+    let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     if game_state.owner.ne(payer.key) {
         return Err(ProcessError::InvalidOwner)?;

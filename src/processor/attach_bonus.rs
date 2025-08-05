@@ -50,6 +50,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: AttachBonu
         return Err(ProgramError::AccountNotRentExempt);
     }
 
+    if game_account.data.borrow()[0] != 1 {
+        return Err(ProgramError::UninitializedAccount);
+    }
     let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     let (pda, _bump_seed) = Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);

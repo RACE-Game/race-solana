@@ -41,6 +41,9 @@ pub fn process(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
+    if game_account.data.borrow()[0] != 1 {
+        return Err(ProgramError::UninitializedAccount);
+    }
     let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     for reject_deposit in reject_deposits {
