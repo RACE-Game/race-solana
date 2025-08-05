@@ -161,8 +161,8 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         .ok_or(ProcessError::StakeAmountOverflow)?;
     msg!("Lamports of the account returned to its owner");
 
-    let game_account_len = std::mem::size_of_val(game_account);
-    let minimum_rent = Rent::from_account_info(game_account)?.minimum_balance(game_account_len);
+    let game_state_len = borsh::object_length(&game_state)?;
+    let minimum_rent = Rent::get()?.minimum_balance(game_state_len);
     **game_account.lamports.borrow_mut() = minimum_rent;
     **players_reg_account.lamports.borrow_mut() = 0;
 
