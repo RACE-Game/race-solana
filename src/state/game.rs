@@ -100,11 +100,19 @@ pub struct Bonus {
     pub amount: u64,
 }
 
+#[derive(Default, BorshDeserialize, BorshSerialize, Debug, PartialEq, Eq, Clone)]
+pub enum GameStatus {
+    #[default]
+    Initializing,
+    Initialized,
+    Closed,
+}
+
 // State of on-chain GameAccount
 #[cfg_attr(test, derive(PartialEq, Clone))]
 #[derive(Default, BorshDeserialize, BorshSerialize, Debug)]
 pub struct GameState {
-    pub is_initialized: bool,
+    pub game_status: GameStatus,
     // the contract version, used for upgrade
     pub version: String,
     // game name displayed on chain
@@ -155,6 +163,6 @@ pub struct GameState {
 
 impl IsInitialized for GameState {
     fn is_initialized(&self) -> bool {
-        self.is_initialized
+        self.game_status == GameStatus::Initialized
     }
 }

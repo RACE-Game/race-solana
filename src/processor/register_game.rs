@@ -1,5 +1,5 @@
 use crate::{
-    error::ProcessError, processor::misc::pack_state_to_account, state::{GameReg, GameState, RegistryState}
+    error::ProcessError, processor::misc::pack_state_to_account, state::{GameReg, GameState, GameStatus, RegistryState}
 };
 
 use borsh::BorshDeserialize;
@@ -40,7 +40,7 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
     }
 
     let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
-    if !game_state.is_initialized {
+    if game_state.game_status != GameStatus::Initialized {
         return Err(ProgramError::UninitializedAccount);
     }
 

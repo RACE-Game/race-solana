@@ -10,7 +10,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::state::players;
+use crate::state::{players, GameStatus};
 use crate::state::GameState;
 use crate::{
     error::ProcessError,
@@ -109,7 +109,8 @@ pub fn process(
     }
 
     let game_state = GameState {
-        is_initialized: true,
+        // is_initialized: true,
+        game_status: GameStatus::Initialized,
         version: "0.2.6".into(),
         title: params.title,
         bundle_addr: *bundle_account.key,

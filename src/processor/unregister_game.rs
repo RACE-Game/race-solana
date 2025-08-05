@@ -1,6 +1,6 @@
 use crate::{
     error::ProcessError,
-    state::{GameState, RegistryState},
+    state::{GameState, GameStatus, RegistryState},
 };
 
 use borsh::BorshDeserialize;
@@ -28,7 +28,7 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
     // An empty game account can be removed without checking
     if !game_account.data_is_empty() {
         let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
-        if !game_state.is_initialized {
+        if game_state.game_status != GameStatus::Initialized {
             return Err(ProgramError::UninitializedAccount);
         }
 

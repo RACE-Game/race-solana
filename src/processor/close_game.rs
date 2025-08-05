@@ -6,6 +6,7 @@ use solana_program::{
     program::invoke_signed,
     program_error::ProgramError,
     pubkey::Pubkey,
+    sysvar::{rent::Rent, Sysvar},
 };
 
 use crate::{
@@ -28,7 +29,6 @@ fn claim_bonuses<'a, 'b, 'c, I: Iterator<Item = &'a AccountInfo<'b>>>(
     account_iter: &'c mut I,
 ) -> ProgramResult {
     for bonus in game_state.bonuses.iter() {
-
         let bonus_account = next_account_info(account_iter)?;
         let receiver_account = next_account_info(account_iter)?;
 
@@ -92,7 +92,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
     // check is_initialized?
 
-
     if game_state.owner.ne(&owner_account.key) {
         return Err(ProcessError::InvalidOwner)?;
     }
@@ -142,7 +141,15 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     }
 
     // Claim all available bonuses
-    claim_bonuses(&game_state, owner_account, game_account, pda_account, bump_seed, token_program, account_iter)?;
+    claim_bonuses(
+        &game_state,
+        owner_account,
+        game_account,
+        pda_account,
+        bump_seed,
+        token_program,
+        account_iter,
+    )?;
 
     // Close players reg account and transafer the SOL to the owner
     // Close game account and transfer the SOL to the owner
@@ -153,7 +160,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         .checked_add(players_reg_account.lamports())
         .ok_or(ProcessError::StakeAmountOverflow)?;
     msg!("Lamports of the account returned to its owner");
-    **game_account.lamports.borrow_mut() = 0;
+
+    let game_account_len = std::mem::size_of_val(game_account);
+    let minimum_rent = Rent::from_account_info(game_account)?.minimum_balance(game_account_len);
+    **game_account.lamports.borrow_mut() = minimum_rent;
     **players_reg_account.lamports.borrow_mut() = 0;
 
     msg!("Successfully closed the game account: {}", game_account.key);
