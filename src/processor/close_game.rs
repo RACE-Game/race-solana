@@ -153,6 +153,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         account_iter,
     )?;
 
+    let game_state_len = borsh::object_length(&game_state)?;
+    let minimum_rent = Rent::get()?.minimum_balance(game_state_len);
+
     // Close players reg account and transafer the SOL to the owner
     // Close game account and transfer the SOL to the owner
     **owner_account.lamports.borrow_mut() = owner_account
@@ -160,11 +163,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         .checked_add(game_account.lamports())
         .ok_or(ProcessError::StakeAmountOverflow)?
         .checked_add(players_reg_account.lamports())
+        .ok_or(ProcessError::StakeAmountOverflow)?
+        .checked_sub(minimum_rent)
         .ok_or(ProcessError::StakeAmountOverflow)?;
     msg!("Lamports of the account returned to its owner");
 
-    let game_state_len = borsh::object_length(&game_state)?;
-    let minimum_rent = Rent::get()?.minimum_balance(game_state_len);
     **game_account.lamports.borrow_mut() = minimum_rent;
     **players_reg_account.lamports.borrow_mut() = 0;
 
