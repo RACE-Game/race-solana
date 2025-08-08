@@ -153,8 +153,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         account_iter,
     )?;
 
-    let game_state_len = borsh::object_length(&game_state)?;
-    let minimum_rent = Rent::get()?.minimum_balance(game_state_len);
+    game_account.realloc(1, false)?;
+    let data = &mut game_account.try_borrow_mut_data()?;
+    data[0] = 2;
+    let minimum_rent = Rent::get()?.minimum_balance(1);
 
     // Close players reg account and transafer the SOL to the owner
     // Close game account and transfer the SOL to the owner

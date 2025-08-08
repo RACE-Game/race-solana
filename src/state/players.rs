@@ -48,7 +48,9 @@ pub const HEAD_LEN: usize = SLOTS_COUNT_OFFSET + SLOTS_COUNT_LEN;
 #[derive(Debug, BorshDeserialize)]
 pub struct PlayerJoinWithoutKey {
     pub addr: Pubkey,
+    #[allow(unused)]
     pub position: u16,
+    #[allow(unused)]
     pub access_version: u64,
 }
 
