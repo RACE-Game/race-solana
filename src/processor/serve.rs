@@ -16,7 +16,7 @@ use solana_program::{
 
 use crate::{
     error::ProcessError, processor::misc::pack_state_to_account,
-    state::{GameState, ServerJoin, ServerState, players}
+    state::{players, GameState, ServerJoin, ServerState}
 };
 use crate::{constants::MAX_SERVER_NUM, types::ServeParams};
 
@@ -37,10 +37,10 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
 
     let players_reg_account = next_account_info(account_iter)?;
 
-    let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
-    if !game_state.is_initialized {
+    if game_account.data.borrow()[0] != 1 {
         return Err(ProgramError::UninitializedAccount);
     }
+    let mut game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     if players_reg_account.key.ne(&game_state.players_reg_account) {
         return Err(ProcessError::InvalidPlayersRegAccount)?;

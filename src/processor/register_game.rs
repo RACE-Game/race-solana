@@ -39,10 +39,10 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
         return Err(ProcessError::RegistrationIsFull)?;
     }
 
-    let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
-    if !game_state.is_initialized {
+    if game_account.data.borrow()[0] != 1 {
         return Err(ProgramError::UninitializedAccount);
     }
+    let game_state = GameState::try_from_slice(&game_account.try_borrow_data()?)?;
 
     if game_state.owner.ne(payer.key) {
         return Err(ProcessError::InvalidOwner)?;
