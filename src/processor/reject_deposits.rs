@@ -88,7 +88,12 @@ pub fn process(
         // The PlayerJoin with the same access_version should be removed as well
         // So the player can later join again
 
+        let mut player_to_remove: Option<usize> = None;
         if let Some((idx, _)) = players::get_player_by_id(&players_reg_account.try_borrow_data()?, reject_deposit)? {
+            player_to_remove = Some(idx);
+        }
+
+        if let Some(idx) = player_to_remove {
             players::remove_player_by_index(&mut players_reg_account.try_borrow_mut_data()?, idx)?;
         }
     }
