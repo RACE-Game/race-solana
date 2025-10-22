@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use solana_program::{
-    account_info::{next_account_info, AccountInfo},
+    account_info::{next_account_info, next_account_infos, AccountInfo},
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
@@ -49,18 +49,19 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    for slot in recipient_state.slots.iter_mut() {
-        let pda_account = next_account_info(accounts_iter)?;
+    while let Ok(pda_stake_receiver) = next_account_infos(accounts_iter, 3) {
+        let pda_account = &pda_stake_receiver[0];
+        let slot_stake_account = &pda_stake_receiver[1];
+        let receiver = &pda_stake_receiver[2];
+
+        let Some(slot) = recipient_state.slots.iter_mut().find(|slot| slot.stake_addr.eq(&slot_stake_account.key)) else {
+            return Err(ProcessError::InvalidRecipientSlotAccount)?;
+        };
 
         let (pda, _bump) = Pubkey::find_program_address(&[recipient_account.key.as_ref(), &[slot.id]], program_id);
-
         if pda.ne(&pda_account.key) {
             return Err(ProcessError::InvalidPDA)?;
         }
-
-        // The slot stake account
-        let slot_stake_account = next_account_info(accounts_iter)?;
-        let receiver = next_account_info(accounts_iter)?;
 
         validate_receiver(payer.key, &slot.token_addr, receiver.key)?;
 
