@@ -93,8 +93,8 @@ pub fn get_player_by_index(
     data: &[u8],
     index: usize,
 ) -> Result<Option<PlayerJoinWithoutKey>, ProgramError> {
-    let size = get_players_count(data)? as usize;
-    if index >= size as usize {
+    let slots_count = get_slots_count(data)?;
+    if index >= slots_count {
         return Ok(None);
     }
     let start = index * PLAYER_INFO_LEN + HEAD_LEN;
@@ -155,9 +155,9 @@ pub fn get_player_by_addr(
 }
 
 pub fn is_player_joined(data: &[u8], addr: &Pubkey) -> Result<bool, ProgramError> {
-    let size = get_players_count(data)?;
+    let slots_count = get_slots_count(data)?;
     // Find a slot
-    for i in 0..(size as usize) {
+    for i in 0..slots_count {
         let start = i * PLAYER_INFO_LEN + HEAD_LEN;
         let addr_end = start + PUBKEY_LEN;
         if addr.as_ref() == &data[start..addr_end] {
