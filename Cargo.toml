@@ -5,6 +5,8 @@ edition = "2021"
 
 [features]
 no-entrypoint = []
+custom-heap = []
+custom-panic = []
 
 [lib]
 crate-type = ["cdylib", "rlib"]
