@@ -1,17 +1,11 @@
 use borsh::BorshDeserialize;
-///! Server joins a game
-///!
-///! When a server joins an on-chain game, it can be either of the following cases:
-///!
-///! 1. It is the first to join and thus it also becomes the transactor
-///! 2. It is the nth to join and n is less than or equal to 10
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
-    program_pack::Pack,
     pubkey::Pubkey,
+    program_pack::IsInitialized,
 };
 
 use crate::{
@@ -22,7 +16,7 @@ use crate::{constants::MAX_SERVER_NUM, types::ServeParams};
 
 #[inline(never)]
 pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServeParams) -> ProgramResult {
-    let ServeParams { verify_key } = params;
+    let ServeParams { } = params;
     let account_iter = &mut accounts.iter();
 
     let payer_account = next_account_info(account_iter)?;
@@ -47,8 +41,9 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
     }
 
     let server_account = next_account_info(account_iter)?;
-    let server_state = ServerState::unpack(&server_account.try_borrow_data()?)?;
-    if !server_state.is_initialized {
+    let server_state = ServerState::try_from_slice(&server_account.try_borrow_data()?)?;
+
+    if !server_state.is_initialized() {
         return Err(ProcessError::ServerAccountNotAvailable)?;
     }
 
@@ -75,7 +70,6 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: ServePara
         addr: *payer_account.key,
         endpoint: server_state.endpoint.clone(),
         access_version: new_access_version,
-        verify_key,
     };
 
     if game_state.transactor_addr.is_none() || game_state.servers.len() == 0 {

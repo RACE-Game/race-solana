@@ -55,6 +55,7 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The owner of the player profile
     /// 1. `[]` The server profile account to be created
+    /// 2. `[]` The system program
     RegisterServer { params: RegisterServerParams },
 
     /// # [5] Settle game result
