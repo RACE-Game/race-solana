@@ -44,7 +44,6 @@ pub struct PlayerJoin {
     pub addr: Pubkey,
     pub position: u16,
     pub access_version: u64,
-    pub verify_key: String,
 }
 
 #[cfg_attr(test, derive(PartialEq, Eq))]
@@ -53,7 +52,6 @@ pub struct ServerJoin {
     pub addr: Pubkey,
     pub endpoint: String,
     pub access_version: u64,
-    pub verify_key: String,
 }
 
 #[cfg_attr(test, derive(PartialEq, Eq))]

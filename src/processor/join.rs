@@ -211,7 +211,6 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
         addr: payer_account.key.clone(),
         position,
         access_version: game_state.access_version,
-        verify_key: params.verify_key,
     };
     let idx = players::add_player(&mut players_reg_account.try_borrow_mut_data()?, &player_join)?;
     if idx.is_none() {          // account is full, need realloc

@@ -3,14 +3,16 @@ use solana_program::{
     entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
-    program_pack::Pack,
     pubkey::Pubkey,
     sysvar::rent::Rent,
 };
+use borsh::BorshDeserialize;
 
 use crate::{constants::PROFILE_ACCOUNT_LEN, error::ProcessError, state::PlayerState};
-use crate::constants::PLAYER_PROFILE_SEED;
+use crate::constants::{PLAYER_PROFILE_SEED, PROFILE_VERSION};
 use crate::types::CreatePlayerProfileParams;
+use crate::processor::misc::pack_state_to_account;
+
 
 #[inline(never)]
 pub fn process(
@@ -29,7 +31,7 @@ pub fn process(
 
     let pfp_account = next_account_info(account_iter)?;
 
-    let _system_program = next_account_info(account_iter)?;
+    let system_program = next_account_info(account_iter)?;
 
     if !owner_account.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
@@ -54,17 +56,23 @@ pub fn process(
         Some(pfp_account.key.clone())
     };
 
-    let player_state = PlayerState {
-        is_initialized: true,
+    // If old credentials exists, it can't be altered
+    if let Ok(old_profile_state) = PlayerState::try_from_slice(&profile_account.try_borrow_data()?) {
+        if old_profile_state.credentials.ne(&params.credentials) {
+            return Err(ProcessError::InconsistentCredentials)?;
+        }
+    }
+
+    let profile_state = PlayerState {
+        version: PROFILE_VERSION,
         nick: params.nick,
         pfp: pfp_pubkey,
+        credentials: params.credentials,
     };
 
-    msg!("player profile state: {:?}", &player_state);
+    msg!("player profile state: {:?}", &profile_state);
 
-    PlayerState::pack(player_state, &mut profile_account.try_borrow_mut_data()?)?;
-
-    msg!("Profile addr: {:?}", profile_account.key);
+    pack_state_to_account(profile_state, &profile_account, &owner_account, &system_program)?;
 
     Ok(())
 }
