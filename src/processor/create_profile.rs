@@ -1,7 +1,6 @@
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint::ProgramResult,
-    msg,
     program_error::ProgramError,
     pubkey::Pubkey,
     sysvar::rent::Rent,
@@ -69,8 +68,6 @@ pub fn process(
         pfp: pfp_pubkey,
         credentials: params.credentials,
     };
-
-    msg!("player profile state: {:?}", &profile_state);
 
     pack_state_to_account(profile_state, &profile_account, &owner_account, &system_program)?;
 

@@ -36,6 +36,8 @@ pub fn process(
     let server_pubkey =
         Pubkey::create_with_seed(owner_account.key, SERVER_PROFILE_SEED, program_id)?;
     if server_pubkey != *server_account.key {
+        msg!("Given server account: {}", server_account.key);
+        msg!("Expected server account: {}", server_pubkey);
         return Err(ProcessError::InvalidAccountPubkey)?;
     }
 
@@ -53,8 +55,6 @@ pub fn process(
         endpoint: params.endpoint,
         credentials: params.credentials,
     };
-
-    msg!("Server state: {:?}", &server_state);
 
     pack_state_to_account(server_state, &server_account, &owner_account, &system_program)?;
 

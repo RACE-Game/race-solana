@@ -159,7 +159,6 @@ pub struct JoinParams {
     pub access_version: u64,
     pub settle_version: u64,
     pub position: u16,
-    pub verify_key: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]

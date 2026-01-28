@@ -271,13 +271,11 @@ mod tests {
         addr: Pubkey,
         position: u16,
         access_version: u64,
-        verify_key: &str,
     ) -> PlayerJoin {
         PlayerJoin {
             addr,
             position,
             access_version,
-            verify_key: verify_key.to_string(),
         }
     }
 
@@ -309,8 +307,8 @@ mod tests {
     #[test]
     fn test_get_players_count() {
         let players = vec![
-            create_player(Pubkey::default(), 1, 1, "key1"),
-            create_player(Pubkey::default(), 2, 2, "key2"),
+            create_player(Pubkey::default(), 1, 1),
+            create_player(Pubkey::default(), 2, 2),
         ];
         let data = setup_data(players);
         assert_eq!(get_players_count(&data).unwrap(), 2);
@@ -319,8 +317,8 @@ mod tests {
     #[test]
     fn test_get_player_by_index() {
         let players = vec![
-            create_player(Pubkey::new_unique(), 1, 1, "key1"),
-            create_player(Pubkey::new_unique(), 2, 2, "key2"),
+            create_player(Pubkey::new_unique(), 1, 1),
+            create_player(Pubkey::new_unique(), 2, 2),
         ];
         let data = setup_data(players.clone());
         let second_player = get_player_by_index(&data, 1).unwrap().unwrap();
@@ -329,8 +327,8 @@ mod tests {
 
     #[test]
     fn test_get_player_by_addr() {
-        let player1 = create_player(Pubkey::new_unique(), 1, 1, "key1");
-        let player2 = create_player(Pubkey::new_unique(), 2, 2, "key2");
+        let player1 = create_player(Pubkey::new_unique(), 1, 1);
+        let player2 = create_player(Pubkey::new_unique(), 2, 2);
         let players = vec![player1.clone(), player2.clone()];
         let data = setup_data(players.clone());
 
@@ -341,7 +339,7 @@ mod tests {
 
     #[test]
     fn test_add_player() {
-        let player = create_player(Pubkey::new_unique(), 1, 1, "key");
+        let player = create_player(Pubkey::new_unique(), 1, 1);
         let mut data = setup_data(vec![player.clone()]);
         data.resize(data.len() + 171, 0);
         increase_slots_count(&mut data).unwrap();
@@ -353,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_remove_player_by_index() {
-        let player = create_player(Pubkey::new_unique(), 1, 1, "key");
+        let player = create_player(Pubkey::new_unique(), 1, 1);
         let mut data = setup_data(vec![player.clone()]);
         remove_player_by_index(&mut data, 0).unwrap();
         let removed_player = get_player_by_index(&data, 0).unwrap();
@@ -404,7 +402,7 @@ mod tests {
 
     #[test]
     fn test_get_player_by_id() {
-        let player = create_player(Pubkey::new_unique(), 1, 1, "key");
+        let player = create_player(Pubkey::new_unique(), 1, 1);
         let data = setup_data(vec![player.clone()]);
         let (index, found_player) = get_player_by_id(&data, 1).unwrap().unwrap();
         assert_eq!(index, 0);
