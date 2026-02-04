@@ -63,6 +63,7 @@ pub struct CreateGameAccountParams {
 #[derive(Debug, BorshSerialize, BorshDeserialize, Clone)]
 pub struct RegisterServerParams {
     pub endpoint: String,
+    pub credentials: Vec<u8>,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
@@ -96,6 +97,7 @@ pub struct GetTransactorInfoParams {
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct CreatePlayerProfileParams {
     pub nick: String,
+    pub credentials: Vec<u8>,
 }
 
 /// The player status in settlement.
@@ -157,12 +159,10 @@ pub struct JoinParams {
     pub access_version: u64,
     pub settle_version: u64,
     pub position: u16,
-    pub verify_key: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
 pub struct ServeParams {
-    pub verify_key: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize)]

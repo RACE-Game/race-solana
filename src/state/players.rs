@@ -1,13 +1,11 @@
 /// Helper fuctions for reading and mutating players information of a game.  Each game has one
 /// players registration account(players_reg_account), which contains a list of all [[PlayerJoin]]s.
-/// Each PlayerJoin is stored as 170 bytes.  Since the verify_key isn't really useful in the
-/// program logic, we usually skip it by deserilaizing the PlayerJoin with PlayerJoinWithoutKey
-/// struct, which is 43 bytes, completely on stack.
+/// Each PlayerJoin is stored as 42 bytes.
 ///
 /// The account structure:
 ///
 /// [u64][u64][usize][128byte][4byte][PlayerJoin*]
-/// |    |     |      |       |      |___ The array of PlayerJoins, each uses 170 bytes.
+/// |    |     |      |       |      |___ The array of PlayerJoins, each uses 42 bytes.
 /// |    |     |      |       |___ The total number of slots, empty slots included.
 /// |    |     |      |___ The position flags, 0 stands for empty, 1 stands for occupied.
 /// |    |     |___ The number of players. It is legal to have some empty slots in the middle, those are not counted.
@@ -24,8 +22,7 @@ const VERSION_LEN: usize = 8;
 const COUNT_LEN: usize = 8;
 const PUBKEY_LEN: usize = 32;
 const POSITION_FLAGS_LEN: usize = 128;
-const PLAYER_INFO_LEN: usize = 170;
-const PLAYER_INFO_WITHOUT_KEY_LEN: usize = 42;
+const PLAYER_INFO_LEN: usize = 42;
 const SLOTS_COUNT_LEN: usize = 4;
 
 // lens for fields of PlayerJoin
@@ -99,7 +96,7 @@ pub fn get_player_by_index(
     }
     let start = index * PLAYER_INFO_LEN + HEAD_LEN;
     let addr_end = start + PUBKEY_LEN;
-    let end = start + PLAYER_INFO_WITHOUT_KEY_LEN;
+    let end = start + PLAYER_INFO_LEN;
     if data[start..addr_end].iter().any(|n| *n != 0) {
         let data = &data[start..end];
         Ok(Some(PlayerJoinWithoutKey::try_from_slice(data)?))
@@ -123,7 +120,7 @@ pub fn get_player_by_id(
             return Ok(Some((
                 i,
                 PlayerJoinWithoutKey::try_from_slice(
-                    &data[start..(start + PLAYER_INFO_WITHOUT_KEY_LEN)],
+                    &data[start..(start + PLAYER_INFO_LEN)],
                 )?,
             )));
         }
@@ -145,7 +142,7 @@ pub fn get_player_by_addr(
             return Ok(Some((
                 i,
                 PlayerJoinWithoutKey::try_from_slice(
-                    &data[start..(start + PLAYER_INFO_WITHOUT_KEY_LEN)],
+                    &data[start..(start + PLAYER_INFO_LEN)],
                 )?,
             )));
         }
@@ -274,13 +271,11 @@ mod tests {
         addr: Pubkey,
         position: u16,
         access_version: u64,
-        verify_key: &str,
     ) -> PlayerJoin {
         PlayerJoin {
             addr,
             position,
             access_version,
-            verify_key: verify_key.to_string(),
         }
     }
 
@@ -312,8 +307,8 @@ mod tests {
     #[test]
     fn test_get_players_count() {
         let players = vec![
-            create_player(Pubkey::default(), 1, 1, "key1"),
-            create_player(Pubkey::default(), 2, 2, "key2"),
+            create_player(Pubkey::default(), 1, 1),
+            create_player(Pubkey::default(), 2, 2),
         ];
         let data = setup_data(players);
         assert_eq!(get_players_count(&data).unwrap(), 2);
@@ -322,8 +317,8 @@ mod tests {
     #[test]
     fn test_get_player_by_index() {
         let players = vec![
-            create_player(Pubkey::new_unique(), 1, 1, "key1"),
-            create_player(Pubkey::new_unique(), 2, 2, "key2"),
+            create_player(Pubkey::new_unique(), 1, 1),
+            create_player(Pubkey::new_unique(), 2, 2),
         ];
         let data = setup_data(players.clone());
         let second_player = get_player_by_index(&data, 1).unwrap().unwrap();
@@ -332,8 +327,8 @@ mod tests {
 
     #[test]
     fn test_get_player_by_addr() {
-        let player1 = create_player(Pubkey::new_unique(), 1, 1, "key1");
-        let player2 = create_player(Pubkey::new_unique(), 2, 2, "key2");
+        let player1 = create_player(Pubkey::new_unique(), 1, 1);
+        let player2 = create_player(Pubkey::new_unique(), 2, 2);
         let players = vec![player1.clone(), player2.clone()];
         let data = setup_data(players.clone());
 
@@ -344,7 +339,7 @@ mod tests {
 
     #[test]
     fn test_add_player() {
-        let player = create_player(Pubkey::new_unique(), 1, 1, "key");
+        let player = create_player(Pubkey::new_unique(), 1, 1);
         let mut data = setup_data(vec![player.clone()]);
         data.resize(data.len() + 171, 0);
         increase_slots_count(&mut data).unwrap();
@@ -356,7 +351,7 @@ mod tests {
 
     #[test]
     fn test_remove_player_by_index() {
-        let player = create_player(Pubkey::new_unique(), 1, 1, "key");
+        let player = create_player(Pubkey::new_unique(), 1, 1);
         let mut data = setup_data(vec![player.clone()]);
         remove_player_by_index(&mut data, 0).unwrap();
         let removed_player = get_player_by_index(&data, 0).unwrap();
@@ -407,7 +402,7 @@ mod tests {
 
     #[test]
     fn test_get_player_by_id() {
-        let player = create_player(Pubkey::new_unique(), 1, 1, "key");
+        let player = create_player(Pubkey::new_unique(), 1, 1);
         let data = setup_data(vec![player.clone()]);
         let (index, found_player) = get_player_by_id(&data, 1).unwrap().unwrap();
         assert_eq!(index, 0);

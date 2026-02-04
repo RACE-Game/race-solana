@@ -262,6 +262,10 @@ pub enum ProcessError {
     /// 40
     #[error("Invalid players reg account")]
     InvalidPlayersRegAccount,
+
+    /// 41
+    #[error("Inconsistent credentials")]
+    InconsistentCredentials,
 }
 
 impl From<ProcessError> for ProgramError {
