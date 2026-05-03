@@ -15,9 +15,8 @@ pub enum RaceInstruction {
     /// 3. `[writable]` The temp stake account
     /// 4. `[]` The mint account
     /// 5. `[]` The token program
-    /// 6. `[]` The bundled data account
-    /// 7. `[]` The recipient account
-    /// 8. `[]` The system program
+    /// 6. `[]` The recipient account
+    /// 7. `[]` The system program
     CreateGameAccount { params: CreateGameAccountParams },
 
     /// # [1] Close a game

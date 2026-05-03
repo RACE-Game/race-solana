@@ -57,6 +57,7 @@ pub struct CreateGameAccountParams {
     pub title: String,
     pub max_players: u16,
     pub entry_type: EntryType,
+    pub bundle_key: String,
     pub data: Vec<u8>,
 }
 

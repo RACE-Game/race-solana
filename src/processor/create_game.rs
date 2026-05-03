@@ -46,8 +46,6 @@ pub fn process(
 
     let token_program = next_account_info(accounts_iter)?;
 
-    let bundle_account = next_account_info(accounts_iter)?;
-
     let recipient_account = next_account_info(accounts_iter)?;
 
     let system_program = next_account_info(accounts_iter)?;
@@ -113,7 +111,7 @@ pub fn process(
         game_status: GameStatus::Initialized,
         version: "0.2.6".into(),
         title: params.title,
-        bundle_addr: *bundle_account.key,
+        bundle_key: params.bundle_key,
         stake_account: *stake_account.key,
         owner: payer.key.clone(),
         transactor_addr: None,

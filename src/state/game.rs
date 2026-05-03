@@ -115,8 +115,8 @@ pub struct GameState {
     pub version: String,
     // game name displayed on chain
     pub title: String,
-    // addr to the game core logic program on Arweave
-    pub bundle_addr: Pubkey,
+    // key to the game core logic program
+    pub bundle_key: String,
     // addr to the account that holds all players' deposits
     pub stake_account: Pubkey,
     // game owner who created this game account

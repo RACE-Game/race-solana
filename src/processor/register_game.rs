@@ -68,7 +68,7 @@ pub fn process(_programe_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult
         title: game_state.title.clone(),
         addr: game_account.key.clone(),
         reg_time: timestamp,
-        bundle_addr: game_state.bundle_addr.clone(),
+        bundle_key: game_state.bundle_key.clone(),
     };
 
     registry_state.games.push(reg_game);
