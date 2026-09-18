@@ -3,7 +3,8 @@ use solana_program::{
     entrypoint::ProgramResult,
     program_error::ProgramError,
     pubkey::Pubkey,
-    sysvar::rent::Rent,
+    rent::Rent,
+    sysvar::Sysvar,
 };
 use borsh::BorshDeserialize;
 
@@ -40,7 +41,7 @@ pub fn process(
         return Err(ProcessError::InvalidAccountStatus)?;
     }
 
-    let rent = Rent::default();
+    let rent = Rent::get()?;
     if profile_account.lamports() < rent.minimum_balance(PROFILE_ACCOUNT_LEN) {
         return Err(ProgramError::AccountNotRentExempt)?;
     }

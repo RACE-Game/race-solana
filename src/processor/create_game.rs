@@ -57,6 +57,10 @@ pub fn process(
 
     let (pda_stake, _bump_seed_stake) = Pubkey::find_program_address(&[game_account.key.as_ref()], program_id);
 
+    if game_account.try_borrow_data()?[0] != 0 {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
     if game_account.owner.ne(&program_id) {
         return Err(ProgramError::InvalidAccountOwner);
     }

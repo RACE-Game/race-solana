@@ -15,7 +15,8 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
-    sysvar::rent::Rent,
+    rent::Rent,
+    sysvar::Sysvar,
 };
 use spl_token::{
     instruction::{close_account, transfer},
@@ -54,7 +55,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let rent = Rent::default();
+    let rent = Rent::get()?;
 
     if !rent.is_exempt(player_account.lamports(), player_account.data_len()) {
         return Err(ProgramError::AccountNotRentExempt);

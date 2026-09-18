@@ -18,7 +18,8 @@ use solana_program::{
     program::invoke,
     program_error::ProgramError,
     pubkey::Pubkey,
-    sysvar::rent::Rent,
+    rent::Rent,
+    sysvar::Sysvar,
 };
 use spl_token::instruction::{set_authority, AuthorityType};
 use spl_token::state::Account;
@@ -44,7 +45,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: AttachBonu
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let rent = Rent::default();
+    let rent = Rent::get()?;
 
     if !rent.is_exempt(game_account.lamports(), game_account.data_len()) {
         return Err(ProgramError::AccountNotRentExempt);

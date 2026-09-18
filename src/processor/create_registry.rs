@@ -14,10 +14,13 @@ pub fn process(
     let payer = next_account_info(account_iter)?;
     let registry_account = next_account_info(account_iter)?;
 
+    if registry_account.try_borrow_data()?[0] != 0 {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
     if !payer.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
-
 
     let registry_state = RegistryState {
         is_initialized: true,

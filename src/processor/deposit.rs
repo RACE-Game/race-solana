@@ -3,13 +3,20 @@ use crate::{error::ProcessError, processor::misc::pack_state_to_account, state::
 use borsh::BorshDeserialize;
 ///! Player joins a game (cash, sng or tourney)
 use solana_program::{
-    account_info::{next_account_info, AccountInfo}, entrypoint::ProgramResult, msg, program::invoke, program_error::ProgramError, program_pack::Pack, pubkey::Pubkey, rent::Rent
+    account_info::{next_account_info, AccountInfo},
+    entrypoint::ProgramResult,
+    msg,
+    program::invoke,
+    program_error::ProgramError,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    rent::Rent,
+    sysvar::Sysvar,
 };
 use spl_token::{instruction::{close_account, transfer}, native_mint, state::Account};
 
 #[inline(never)]
 pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: DepositParams) -> ProgramResult {
-
     let account_iter = &mut accounts.into_iter();
 
     let payer_account = next_account_info(account_iter)?;
@@ -36,7 +43,7 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: DepositPa
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let rent = Rent::default();
+    let rent = Rent::get()?;
 
     if !Rent::is_exempt(&rent, player_account.lamports(), player_account.data_len()) {
         return Err(ProgramError::AccountNotRentExempt);

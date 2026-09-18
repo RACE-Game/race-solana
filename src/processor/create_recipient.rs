@@ -30,6 +30,10 @@ pub fn process(
     let token_program = next_account_info(accounts_iter)?;
     let system_program = next_account_info(accounts_iter)?;
 
+    if recipient_account.try_borrow_data()?[0] != 0 {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
     if !payer.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
