@@ -4,20 +4,23 @@
 ///
 /// The account structure:
 ///
-/// [u64][u64][usize][128byte][4byte][PlayerJoin*]
-/// |    |     |      |       |      |___ The array of PlayerJoins, each uses 42 bytes.
-/// |    |     |      |       |___ The total number of slots, empty slots included.
-/// |    |     |      |___ The position flags, 0 stands for empty, 1 stands for occupied.
-/// |    |     |___ The number of players. It is legal to have some empty slots in the middle, those are not counted.
-/// |    | __ The settle_version. Updated every time a settlement is procced.
-/// |___ The access_version. Updated every time a new player joined.
-///
+/// [u8][u64][u64][usize][128byte][4byte][PlayerJoin*]
+/// |   |    |     |      |       |      |___ The array of PlayerJoins, each uses 42 bytes.
+/// |   |    |     |      |       |___ The total number of slots, empty slots included.
+/// |   |    |     |      |___ The position flags, 0 stands for empty, 1 stands for occupied.
+/// |   |    |     |___ The number of players. It is legal to have some empty slots in the middle, those are not counted.
+/// |   |    | __ The settle_version. Updated every time a settlement is procced.
+/// |   |___ The access_version. Updated every time a new player joined.
+/// |___ The discriminator.
 use crate::error::ProcessError;
 use crate::state::PlayerJoin;
 use borsh::BorshDeserialize;
 use solana_program::{program_error::ProgramError, pubkey::Pubkey, msg};
 
+pub const PLAYERS_DISCRIMINATOR: u8 = 127;
+
 // lens for each fields
+const DISCRIMINATOR_LEN: usize = 1;
 const VERSION_LEN: usize = 8;
 const COUNT_LEN: usize = 8;
 const PUBKEY_LEN: usize = 32;
@@ -32,7 +35,7 @@ const ID_OFFSET: usize = PUBKEY_LEN + POSITION_LEN;
 const ID_LEN: usize = 8;
 
 // offsets for each fields
-const ACCESS_VERSION_OFFSET: usize = 0;
+const ACCESS_VERSION_OFFSET: usize = DISCRIMINATOR_LEN;
 const SETTLE_VERSION_OFFSET: usize = ACCESS_VERSION_OFFSET + VERSION_LEN;
 const COUNT_OFFSET: usize = SETTLE_VERSION_OFFSET + VERSION_LEN;
 #[allow(unused)]

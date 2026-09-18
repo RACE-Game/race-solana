@@ -61,6 +61,10 @@ pub fn process(
         return Err(ProgramError::AccountAlreadyInitialized);
     }
 
+    if players_reg_account.try_borrow_data()?[0] != 0 {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
     if game_account.owner.ne(&program_id) {
         return Err(ProgramError::InvalidAccountOwner);
     }
@@ -68,6 +72,9 @@ pub fn process(
     if players_reg_account.owner.ne(&program_id) {
         return Err(ProgramError::InvalidAccountOwner);
     }
+
+    // Set the discriminator
+    players_reg_account.try_borrow_mut_data()?[0] = players::PLAYERS_DISCRIMINATOR;
 
     // Ensure the players_reg_account has enough space
     players::validate_account_data(&players_reg_account.try_borrow_data()?)?;

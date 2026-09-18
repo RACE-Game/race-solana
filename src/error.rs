@@ -266,10 +266,6 @@ pub enum ProcessError {
     /// 41
     #[error("Inconsistent credentials")]
     InconsistentCredentials,
-
-    /// 42
-    #[error("Account already initialized")]
-    AccountAlreadyInitialized,
 }
 
 impl From<ProcessError> for ProgramError {
