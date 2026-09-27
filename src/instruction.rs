@@ -44,7 +44,8 @@ pub enum RaceInstruction {
     ///
     /// Accounts expected:
     /// 0. `[signer]` The owner of the player profile
-    /// 1. `[]` The player profile account to be created
+    /// 1. `[writable]` The player profile account. Created with seed by the
+    ///    program when missing, reallocated to fit the state otherwise.
     /// 2. `[]` The pfp account
     /// 3. `[]` The system program
     CreatePlayerProfile { params: CreatePlayerProfileParams },
@@ -115,16 +116,17 @@ pub enum RaceInstruction {
     /// Accounts expected:
     /// 0. `[signer]` The payer account
     /// 1. `[]` The player account
-    /// 2. `[writable]` The temp account
-    /// 3. `[writable]` The game account
-    /// 4. `[writable]` The players reg account
-    /// 5. `[]` The mint account.
-    /// 6. `[writable]` The stake account that holds players' buyin assets
-    /// 7. `[]` The recipient account
-    /// 8. `[writable]` The pda account
-    /// 9. `[]` The SPL token program
-    /// 10. `[]` The system program
-    /// (Optional)11. `[]` Other account to receive the payment. For EntryType::Ticket
+    /// 2. `[]` The profile account
+    /// 3. `[writable]` The temp account
+    /// 4. `[writable]` The game account
+    /// 5. `[writable]` The players reg account
+    /// 6. `[]` The mint account.
+    /// 7. `[writable]` The stake account that holds players' buyin assets
+    /// 8. `[]` The recipient account
+    /// 9. `[writable]` The pda account
+    /// 10. `[]` The SPL token program
+    /// 11. `[]` The system program
+    /// (Optional)12. `[]` Other account to receive the payment. For EntryType::Ticket
     JoinGame { params: JoinParams },
 
     /// # [11] Publish a game
@@ -220,7 +222,7 @@ pub enum RaceInstruction {
     /// 2. `[]` The staking account for slots
     /// 3. `[]` The SPL token program
     /// 4. `[]` The system program
-    AddRecipientSlot { params: RecipientSlotInit }
+    AddRecipientSlot { params: RecipientSlotInit },
 }
 
 impl RaceInstruction {

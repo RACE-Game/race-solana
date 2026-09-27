@@ -25,7 +25,7 @@ const VERSION_LEN: usize = 8;
 const COUNT_LEN: usize = 8;
 const PUBKEY_LEN: usize = 32;
 const POSITION_FLAGS_LEN: usize = 128;
-const PLAYER_INFO_LEN: usize = 42;
+pub const PLAYER_INFO_LEN: usize = 42;
 const SLOTS_COUNT_LEN: usize = 4;
 
 // lens for fields of PlayerJoin

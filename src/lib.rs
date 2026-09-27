@@ -2,9 +2,9 @@
 // #![allow(unused_imports)]
 
 mod entrypoint;
-mod error;
-mod processor;
-mod state;
-mod types;
-mod instruction;
-mod constants;
+pub mod error;
+pub mod processor;
+pub mod state;
+pub mod types;
+pub mod instruction;
+pub mod constants;

@@ -1,7 +1,8 @@
 use crate::processor::misc::{append_state_to_account, pack_state_to_account};
 use crate::state::{DepositStatus, PlayerDeposit, RecipientState};
 use crate::types::JoinParams;
-use crate::state::players;
+use crate::state::{players, PlayerState};
+use crate::constants::{PLAYER_PROFILE_SEED, PROFILE_VERSION};
 use crate::{
     error::ProcessError,
     state::{EntryType, GameState, PlayerJoin},
@@ -25,13 +26,15 @@ use spl_token::{
 };
 
 #[inline(never)]
-pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams) -> ProgramResult {
+pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParams) -> ProgramResult {
 
     let account_iter = &mut accounts.into_iter();
 
     let payer_account = next_account_info(account_iter)?;
 
     let player_account = next_account_info(account_iter)?;
+
+    let profile_account = next_account_info(account_iter)?;
 
     let temp_account = next_account_info(account_iter)?;
 
@@ -53,6 +56,19 @@ pub fn process(_program_id: &Pubkey, accounts: &[AccountInfo], params: JoinParam
 
     if !payer_account.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    let profile_pubkey =
+        Pubkey::create_with_seed(payer_account.key, PLAYER_PROFILE_SEED, program_id)?;
+
+    if profile_account.key.ne(&profile_pubkey) {
+        return Err(ProcessError::InvalidProfileKey)?;
+    }
+
+    let profile = PlayerState::try_from_slice(&profile_account.try_borrow_data()?)?;
+
+    if profile.version != PROFILE_VERSION {
+        return Err(ProcessError::InvalidProfileVersion)?;
     }
 
     let rent = Rent::get()?;

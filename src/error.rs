@@ -266,6 +266,22 @@ pub enum ProcessError {
     /// 41
     #[error("Inconsistent credentials")]
     InconsistentCredentials,
+
+    /// 42
+    #[error("Invalid recovery admin")]
+    InvalidRecoveryAdmin,
+
+    /// 43
+    #[error("Invalid profile key")]
+    InvalidProfileKey,
+
+    /// 44
+    #[error("Profile not found")]
+    ProfileNotFound,
+
+    /// 45
+    #[error("Invalid profile version")]
+    InvalidProfileVersion,
 }
 
 impl From<ProcessError> for ProgramError {
